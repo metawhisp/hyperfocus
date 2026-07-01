@@ -1,0 +1,7 @@
+*.xcodeproj
+DerivedData/
+.DS_Store
+xcuserdata/
+build/
+.build/
+.claude/scheduled_tasks.lock

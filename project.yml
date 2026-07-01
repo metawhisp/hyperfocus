@@ -1,0 +1,46 @@
+# XcodeGen manifest — source of truth for Hyperfocus.xcodeproj (regenerate with `xcodegen generate`).
+name: Hyperfocus
+options:
+  bundleIdPrefix: com.hyperfocus
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+targets:
+  Hyperfocus:
+    type: application
+    platform: macOS
+    sources:
+      - Hyperfocus
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hyperfocus.app
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: Hyperfocus/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Hyperfocus/Resources/Hyperfocus.entitlements
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+  HyperfocusTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - HyperfocusTests
+    dependencies:
+      - target: Hyperfocus
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  Hyperfocus:
+    build:
+      targets:
+        Hyperfocus: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - HyperfocusTests
