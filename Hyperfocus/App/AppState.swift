@@ -20,9 +20,6 @@ final class AppState: ObservableObject {
 
     init() {
         coordinator = SessionCoordinator(settings: settings, store: store)
-        #if DEBUG
-        useSimulatedCamera = true    // debug builds default to the simulated camera (no permission prompt)
-        #endif
         coordinator.attach(self)
     }
 
@@ -74,6 +71,12 @@ final class AppState: ObservableObject {
     }
 
     // MARK: Menu / UI actions
+
+    /// Guaranteed entry point from the menu bar: show the orb and, if idle, open the start card.
+    func startSessionFromMenu() {
+        coordinator.showOrb()
+        if context.state == .idle { send(.orbClicked) }
+    }
 
     func showOrb() { coordinator.showOrb() }
     func showSettings() { coordinator.showSettings() }

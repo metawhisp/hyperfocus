@@ -9,6 +9,9 @@ struct HyperfocusApp: App {
 
     var body: some Scene {
         MenuBarExtra("Hyperfocus", systemImage: "circle.circle") {
+            Button("Start Focus Session…") { appState.startSessionFromMenu() }
+                .keyboardShortcut("n")
+            Divider()
             Button("Show Focus Orb") { appState.showOrb() }
             Button("Settings…") { appState.showSettings() }
             Button("Session History…") { appState.showHistory() }

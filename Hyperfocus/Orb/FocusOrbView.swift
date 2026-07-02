@@ -2,6 +2,10 @@
 
 import SwiftUI
 
+/// Fixed window footprint for the orb; the coloured core is `settings.orbSize`, centred, leaving
+/// room for the glow so it is never clipped by the window bounds.
+let orbWindowSize: CGFloat = 60
+
 struct FocusOrbView: View {
     @EnvironmentObject var app: AppState
     @State private var pulse = false
@@ -9,26 +13,27 @@ struct FocusOrbView: View {
     private var visual: OrbVisual { OrbVisual(state: app.context.state) }
 
     var body: some View {
-        let size = app.settings.orbSize
+        let core = max(18, app.settings.orbSize)
         let animate = visual.pulses && !app.settings.reduceMotion
         ZStack {
-            // Peripheral glow — pulses in ready/active/warning/away.
+            // Peripheral glow — always faintly present so the idle orb is findable, brighter in
+            // ready/active/warning/away, pulsing where the state calls for it.
             Circle()
-                .fill(visual.color)
-                .frame(width: size, height: size)
-                .blur(radius: 9)
-                .opacity(visual.glows ? (animate && pulse ? 0.85 : 0.4) : 0.0)
-                .scaleEffect(animate && pulse ? 1.7 : 1.25)
+                .fill(visual.glowColor)
+                .frame(width: core, height: core)
+                .blur(radius: 11)
+                .opacity(visual.glowOpacity * (animate && pulse ? 1.0 : 0.65))
+                .scaleEffect(animate && pulse ? 1.8 : 1.35)
 
-            // Glass core with a coloured inner fill.
+            // Glass core with a coloured inner fill and a crisp rim so it reads as a deliberate control.
             Circle()
                 .fill(.ultraThinMaterial)
-                .overlay(Circle().fill(visual.color.opacity(visual.coreOpacity)))
-                .overlay(Circle().strokeBorder(.white.opacity(0.45), lineWidth: 0.5))
-                .frame(width: size, height: size)
-                .shadow(color: .black.opacity(0.45), radius: 4, y: 1)
+                .overlay(Circle().fill(visual.coreColor.opacity(visual.coreOpacity)))
+                .overlay(Circle().strokeBorder(.white.opacity(0.7), lineWidth: 1))
+                .frame(width: core, height: core)
+                .shadow(color: .black.opacity(0.5), radius: 5, y: 1)
         }
-        .frame(width: 56, height: 56)
+        .frame(width: orbWindowSize, height: orbWindowSize)
         .opacity(app.settings.orbOpacity)
         .onAppear {
             guard !app.settings.reduceMotion else { return }
@@ -40,27 +45,28 @@ struct FocusOrbView: View {
 /// Maps a session state to the orb's look (BRIEF: idle glass, ready pulse, active core, warning,
 /// away red, completed flash).
 private struct OrbVisual {
-    let color: Color
+    let coreColor: Color
+    let glowColor: Color
     let coreOpacity: Double
-    let glows: Bool
+    let glowOpacity: Double
     let pulses: Bool
 
     init(state: SessionState) {
         switch state {
         case .idle, .exited:
-            color = .white;        coreOpacity = 0.06; glows = false; pulses = false
+            coreColor = .white;        glowColor = .white;        coreOpacity = 0.18; glowOpacity = 0.30; pulses = false
         case .preparing, .countdown:
-            color = Palette.green; coreOpacity = 0.25; glows = true;  pulses = true
+            coreColor = Palette.green; glowColor = Palette.green;  coreOpacity = 0.45; glowOpacity = 0.75; pulses = true
         case .active:
-            color = Palette.green; coreOpacity = 0.95; glows = true;  pulses = false
+            coreColor = Palette.green; glowColor = Palette.green;  coreOpacity = 0.95; glowOpacity = 0.80; pulses = false
         case .warning:
-            color = Palette.amber; coreOpacity = 0.85; glows = true;  pulses = true
+            coreColor = Palette.amber; glowColor = Palette.amber;  coreOpacity = 0.90; glowOpacity = 0.85; pulses = true
         case .away, .recovering:
-            color = Palette.red;   coreOpacity = 0.95; glows = true;  pulses = true
+            coreColor = Palette.red;   glowColor = Palette.red;    coreOpacity = 0.95; glowOpacity = 0.90; pulses = true
         case .manualPaused:
-            color = Palette.green; coreOpacity = 0.30; glows = false; pulses = false
+            coreColor = Palette.green; glowColor = Palette.green;  coreOpacity = 0.35; glowOpacity = 0.30; pulses = false
         case .completed:
-            color = Palette.green; coreOpacity = 0.70; glows = true;  pulses = false
+            coreColor = Palette.green; glowColor = Palette.green;  coreOpacity = 0.70; glowOpacity = 0.85; pulses = false
         }
     }
 }

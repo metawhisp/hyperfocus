@@ -35,6 +35,9 @@ enum DebugSnapshots {
 
         snap(OnboardingView(onFinish: {}), "onboarding", dir, CGSize(width: 480, height: 400))
 
+        snap(SettingsView(onClearData: {}, onResetOrb: {}, onOpenSystemCamera: {}).environmentObject(app),
+             "settings", dir, CGSize(width: 460, height: 560))
+
         NSLog("Hyperfocus: snapshots written to \(dir.path)")
     }
 

@@ -18,6 +18,7 @@ final class SessionCoordinator {
     private let voice: VoicePrompting = VoicePromptService()
     private let alarm: AlarmPlaying = AlarmService()
     private let simulated = SimulatedPresenceService()
+    private let permission = CameraPermissionService()
     private var presence: PresenceDetecting?
     private let timer = SessionTimer()
 
@@ -128,11 +129,8 @@ final class SessionCoordinator {
     // MARK: Presence
 
     private func startPresence(warmup: Bool) {
+        let usingSimulated = appState?.useSimulatedCamera ?? false
         if presence == nil {
-            var usingSimulated = false
-            #if DEBUG
-            usingSimulated = appState?.useSimulatedCamera ?? false
-            #endif
             let service: PresenceDetecting = usingSimulated ? simulated : CameraPresenceService()
             service.onEvent = { [weak self] event in
                 switch event {
@@ -143,6 +141,17 @@ final class SessionCoordinator {
             }
             presence = service
         }
+        // Real camera: request permission first so the capture session can actually start (and the
+        // camera indicator turns on). If denied, the service emits .notAuthorized → reducer degrades
+        // to no-camera semantics. Simulated camera needs no permission.
+        if usingSimulated {
+            beginPresence(warmup: warmup)
+        } else {
+            permission.requestAccess { [weak self] _ in self?.beginPresence(warmup: warmup) }
+        }
+    }
+
+    private func beginPresence(warmup: Bool) {
         if warmup { presence?.startWarmup() } else { presence?.startDetection() }
     }
 
