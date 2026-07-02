@@ -160,6 +160,11 @@ private struct MorphAnimator {
         fromRGB = color(toward: old.rgb, at: now)
         start = now
     }
+
+    func isAnimating(at now: Date) -> Bool {
+        guard let start else { return false }
+        return now.timeIntervalSince(start) < duration
+    }
 }
 
 // MARK: Production orb view
@@ -167,11 +172,17 @@ private struct MorphAnimator {
 struct FocusOrbView: View {
     @EnvironmentObject var app: AppState
     @State private var morph = MorphAnimator()
+    @State private var animEpoch = 0   // bumped after a morph ends so `paused` re-evaluates
 
     var body: some View {
+        let _ = animEpoch
         let style = OrbMorphStyle(state: app.context.state)
         let reduce = app.settings.reduceMotion
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
+        // Battery: the idle red ring is static — stop the render loop entirely once the morph is
+        // done (measured 5-7% CPU when redrawing the static ring at 30 fps).
+        let isStatic = style.progress == 0 && style.pulseRate == 0
+        let paused = reduce || (isStatic && !morph.isAnimating(at: Date()))
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: paused)) { tl in
             let now = tl.date
             let t = reduce ? 0 : now.timeIntervalSinceReferenceDate
             let p = reduce ? style.progress : morph.progress(toward: style.progress, at: now)
@@ -188,6 +199,9 @@ struct FocusOrbView: View {
         .opacity(app.settings.orbOpacity)
         .onChange(of: app.context.state) { oldState, _ in
             morph.retarget(fromOld: OrbMorphStyle(state: oldState), at: Date())
+            animEpoch += 1
+            // Re-evaluate `paused` once the morph lands (nothing else re-renders the body then).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { animEpoch += 1 }
         }
         .allowsHitTesting(false)   // the AppKit container owns all mouse handling
     }
