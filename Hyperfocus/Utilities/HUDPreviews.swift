@@ -186,25 +186,30 @@ private struct BarCursor: View {
 // MARK: E — FLOW: diagonal stripes crawl through the fill AND (faintly) the dark zone —
 // the whole bar reads alive with no head ornament at all
 
+/// Diagonal moving stripes (shared by FLOW and the FLOW+RULER hybrid).
+private func flowStripes(_ opacity: Double, phase: Double) -> some View {
+    Canvas { ctx, size in
+        let period: CGFloat = 16
+        let shift = CGFloat(phase.truncatingRemainder(dividingBy: Double(period)))
+        var x: CGFloat = -size.height - period + shift
+        while x < size.width + period {
+            var p = Path()
+            p.move(to: CGPoint(x: x, y: size.height))
+            p.addLine(to: CGPoint(x: x + size.height, y: 0))
+            p.addLine(to: CGPoint(x: x + size.height + 6, y: 0))
+            p.addLine(to: CGPoint(x: x + 6, y: size.height))
+            p.closeSubpath()
+            ctx.fill(p, with: .color(.white.opacity(opacity)))
+            x += period
+        }
+    }
+}
+
 private struct BarFlow: View {
     let t: Double
 
     private func stripes(_ opacity: Double, phase: Double) -> some View {
-        Canvas { ctx, size in
-            let period: CGFloat = 16
-            let shift = CGFloat(phase.truncatingRemainder(dividingBy: Double(period)))
-            var x: CGFloat = -size.height - period + shift
-            while x < size.width + period {
-                var p = Path()
-                p.move(to: CGPoint(x: x, y: size.height))
-                p.addLine(to: CGPoint(x: x + size.height, y: 0))
-                p.addLine(to: CGPoint(x: x + size.height + 6, y: 0))
-                p.addLine(to: CGPoint(x: x + 6, y: size.height))
-                p.closeSubpath()
-                ctx.fill(p, with: .color(.white.opacity(opacity)))
-                x += period
-            }
-        }
+        flowStripes(opacity, phase: phase)
     }
 
     var body: some View {
@@ -253,6 +258,35 @@ private struct BarRuler: View {
     }
 }
 
+// MARK: G — FLOW + RULER hybrid: stripes crawl through the FILL, ruler ticks glimmer in the DARK
+
+private struct BarFlowRuler: View {
+    let t: Double
+    var body: some View {
+        let f = loopFraction(t)
+        ZStack(alignment: .leading) {
+            Track()
+            // Dark zone: ruler ticks glimmering in sequence (the fill covers them as it grows).
+            HStack(spacing: 0) {
+                ForEach(1..<10, id: \.self) { i in
+                    let glim = (Int(t * 6) % 9) + 1 == i
+                    Rectangle()
+                        .fill(.white.opacity(glim ? 0.30 : 0.12))
+                        .frame(width: 1.5, height: i == 5 ? 16 : 10)
+                        .frame(width: BAR_W / 10)
+                }
+            }
+            .offset(x: -BAR_W / 20)
+            // Fill: flowing diagonal stripes.
+            Fill(f: f)
+                .overlay(flowStripes(0.14, phase: t * 22).clipShape(Capsule()).frame(width: fillWidth(f)),
+                         alignment: .leading)
+                .overlay(alignment: .trailing) { PctLabel(f: f) }
+        }
+        .frame(width: BAR_W, height: BAR_H)
+    }
+}
+
 // MARK: Gallery
 
 struct HUDProgressGalleryView: View {
@@ -269,6 +303,7 @@ struct HUDProgressGalleryView: View {
                 row("D · CURSOR", "терминальный мигающий курсор на краю; трек дышит") { BarCursor(t: t) }
                 row("E · FLOW", "диагональные полосы текут по заливке и еле заметно по темноте") { BarFlow(t: t) }
                 row("F · RULER", "риски-деления мерцают по очереди; шеврон на краю") { BarRuler(t: t) }
+                row("G · FLOW + RULER", "в заливке текут полосы, в темноте мерцают деления") { BarFlowRuler(t: t) }
             }
             .padding(24)
         }
@@ -300,7 +335,7 @@ enum HUDPreviewWindow {
     private static var window: NSWindow?
 
     static func show() {
-        let w = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 470, height: 620),
+        let w = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 470, height: 700),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "Hyperfocus — HUD Progress Gallery"
         w.level = .floating
