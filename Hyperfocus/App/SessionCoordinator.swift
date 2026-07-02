@@ -279,27 +279,36 @@ final class SessionCoordinator {
         for (index, minutes) in durations.enumerated() {
             let panel = makeCardPanel(
                 QuickStartChipView(minutes: minutes, index: index, model: quickStartModel),
-                app: app, level: .statusBar)
-            let origin = chipOrigin(index: index, size: panel.frame.size,
+                app: app, level: .statusBar, margins: .chip)
+            let origin = chipOrigin(index: index, size: panel.frame.size, m: .chip,
                                     orbFrame: orbFrame, vb: vb, occupied: occupied)
             panel.setFrameOrigin(origin)
             panel.orderFrontRegardless()
-            occupied.append(CGRect(origin: origin, size: panel.frame.size))
+            occupied.append(visibleRect(origin: origin, size: panel.frame.size, m: .chip))
             quickStartChips.append((panel, minutes))
         }
         return true
     }
 
+    /// The VISIBLE card rect inside a margin-padded window.
+    private func visibleRect(origin: CGPoint, size: CGSize, m: CardMargins) -> CGRect {
+        CGRect(x: origin.x + m.horizontal, y: origin.y + m.bottom,
+               width: size.width - 2 * m.horizontal, height: size.height - m.top - m.bottom)
+    }
+
     /// First candidate slot that fits inside the visible bounds without covering the orb or another
     /// chip; falls back to a clamped preferred slot (worst case: orb wedged into a tiny screen).
-    private func chipOrigin(index: Int, size: CGSize, orbFrame: CGRect, vb: CGRect,
+    /// All geometry targets the visible chip — the transparent shadow margins may hang offscreen.
+    private func chipOrigin(index: Int, size: CGSize, m: CardMargins, orbFrame: CGRect, vb: CGRect,
                             occupied: [CGRect]) -> CGPoint {
         let gap: CGFloat = 10
-        let left   = CGPoint(x: orbFrame.minX - size.width - gap, y: orbFrame.midY - size.height / 2)
-        let right  = CGPoint(x: orbFrame.maxX + gap, y: orbFrame.midY - size.height / 2)
-        let below  = CGPoint(x: orbFrame.midX - size.width / 2, y: orbFrame.minY - size.height - gap)
-        let below2 = CGPoint(x: below.x, y: below.y - size.height - 6)
-        let above  = CGPoint(x: orbFrame.midX - size.width / 2, y: orbFrame.maxY + gap)
+        let midY = orbFrame.midY - size.height / 2 - (m.bottom - m.top) / 2
+        let left   = CGPoint(x: orbFrame.minX - size.width - gap + m.horizontal, y: midY)
+        let right  = CGPoint(x: orbFrame.maxX + gap - m.horizontal, y: midY)
+        let below  = CGPoint(x: orbFrame.midX - size.width / 2,
+                             y: orbFrame.minY - size.height - gap + m.top)
+        let below2 = CGPoint(x: below.x, y: below.y - size.height - 6 + m.top + m.bottom)
+        let above  = CGPoint(x: orbFrame.midX - size.width / 2, y: orbFrame.maxY + gap - m.bottom)
 
         let preferred: [CGPoint]
         switch index {
@@ -308,7 +317,7 @@ final class SessionCoordinator {
         default: preferred = [below, below2, above, left, right]
         }
         for candidate in preferred {
-            let rect = CGRect(origin: candidate, size: size)
+            let rect = visibleRect(origin: candidate, size: size, m: m)
             if vb.insetBy(dx: 4, dy: 4).contains(rect)
                 && !rect.intersects(orbFrame.insetBy(dx: -4, dy: -4))
                 && !occupied.contains(where: { $0.insetBy(dx: -4, dy: -4).intersects(rect) }) {
@@ -316,8 +325,10 @@ final class SessionCoordinator {
             }
         }
         var fallback = preferred[0]
-        fallback.x = min(max(fallback.x, vb.minX + 4), vb.maxX - size.width - 4)
-        fallback.y = min(max(fallback.y, vb.minY + 4), vb.maxY - size.height - 4)
+        fallback.x = min(max(fallback.x, vb.minX + 4 - m.horizontal),
+                         vb.maxX - size.width - 4 + m.horizontal)
+        fallback.y = min(max(fallback.y, vb.minY + 4 - m.bottom),
+                         vb.maxY - size.height - 4 + m.top)
         return fallback
     }
 
@@ -469,8 +480,25 @@ final class SessionCoordinator {
 
     // MARK: Window helpers
 
-    private func makeCardPanel(_ view: some View, app: AppState, level: NSWindow.Level) -> KeyablePanel {
-        let host = NSHostingView(rootView: AnyView(view.environmentObject(app)))
+    /// Transparent margins around a card window: the views draw their own soft shadows, and a
+    /// window sized exactly to the content hard-clips the blur into dirty gray edges/corner
+    /// notches. Margins give the shadow room to fade to 0. Placement helpers subtract them so
+    /// the VISIBLE card lands where intended.
+    struct CardMargins {
+        let horizontal: CGFloat
+        let top: CGFloat
+        let bottom: CGFloat
+        static let card = CardMargins(horizontal: 60, top: 44, bottom: 84)   // FDCard: r34, +20 down
+        static let chip = CardMargins(horizontal: 18, top: 12, bottom: 26)   // chips: r8–10, +4 down
+    }
+
+    private func makeCardPanel(_ view: some View, app: AppState, level: NSWindow.Level,
+                               margins: CardMargins = .card) -> KeyablePanel {
+        let padded = view
+            .padding(.horizontal, margins.horizontal)
+            .padding(.top, margins.top)
+            .padding(.bottom, margins.bottom)
+        let host = NSHostingView(rootView: AnyView(padded.environmentObject(app)))
         host.layoutSubtreeIfNeeded()
         let size = host.fittingSize
         let panel = KeyablePanel(contentRect: CGRect(origin: .zero, size: size),
@@ -548,22 +576,25 @@ final class SessionCoordinator {
         return screens.first { !isBusy($0) } ?? NSScreen.main
     }
 
-    private func placeNearOrb(_ panel: NSPanel) {
+    private func placeNearOrb(_ panel: NSPanel, margins m: CardMargins = .card) {
         let vb = orb.currentVisibleBounds
         let orbFrame = orb.currentFrame
         let size = panel.frame.size
-        var x = orbFrame.minX - size.width - 12
-        if x < vb.minX + 8 { x = orbFrame.maxX + 12 }
-        x = min(max(x, vb.minX + 8), vb.maxX - size.width - 8)
-        var y = orbFrame.maxY - size.height
-        y = min(max(y, vb.minY + 8), vb.maxY - size.height - 8)
+        // All geometry targets the VISIBLE card (window minus transparent shadow margins).
+        var x = orbFrame.minX - size.width - 12 + m.horizontal
+        if x + m.horizontal < vb.minX + 8 { x = orbFrame.maxX + 12 - m.horizontal }
+        x = min(max(x, vb.minX + 8 - m.horizontal), vb.maxX - size.width - 8 + m.horizontal)
+        var y = orbFrame.maxY - size.height + m.top
+        y = min(max(y, vb.minY + 8 - m.bottom), vb.maxY - size.height - 8 + m.top)
         panel.setFrameOrigin(CGPoint(x: x, y: y))
     }
 
-    private func center(_ panel: NSPanel) {
+    private func center(_ panel: NSPanel, margins m: CardMargins = .card) {
         let vb = screen.visibleBounds()
         let size = panel.frame.size
-        panel.setFrameOrigin(CGPoint(x: vb.midX - size.width / 2, y: vb.midY - size.height / 2))
+        // Center the visible card: the window's bottom margin is taller than the top one.
+        panel.setFrameOrigin(CGPoint(x: vb.midX - size.width / 2,
+                                     y: vb.midY - size.height / 2 - (m.bottom - m.top) / 2))
     }
 
     private func dismiss(_ panel: inout NSPanel?) { panel?.orderOut(nil); panel = nil }
