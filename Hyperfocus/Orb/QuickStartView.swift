@@ -22,13 +22,17 @@ struct QuickStartChipView: View {
     var body: some View {
         let hot = model.highlighted == index
         VStack(spacing: 3) {
+            // fixedSize: the panel is sized from fittingSize, which can under-measure intrinsic
+            // text by a few points — the digits then truncate to "…" (the old "15…" bug).
             Text("\(minutes)")
                 .font(FD.matrix(26))
+                .fixedSize()
                 .foregroundStyle(hot ? FD.lime : .white.opacity(0.92))
                 .shadow(color: .black.opacity(0.75), radius: 3, y: 1)
                 .shadow(color: FD.lime.opacity(hot ? 1.0 : 0.35), radius: hot ? 18 : 8)
             Text("MIN")
                 .font(.system(size: 8, weight: .bold)).tracking(1.6)
+                .fixedSize()
                 .foregroundStyle(.white.opacity(0.6))
                 .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
             Rectangle().fill(FD.lime)
