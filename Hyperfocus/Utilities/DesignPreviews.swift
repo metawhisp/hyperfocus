@@ -263,28 +263,177 @@ private struct FDInset<Content: View>: View {
     }
 }
 
+/// Matrix timer with a clean custom separator (the Doto colon reads as "plus signs").
+private struct MatrixTimer: View {
+    let mm: String
+    let ss: String
+    var size: CGFloat = 40
+    var color: Color = .white
+
+    var body: some View {
+        HStack(spacing: size * 0.16) {
+            Text(mm).font(FD.matrix(size))
+            VStack(spacing: size * 0.18) {
+                dot; dot
+            }
+            Text(ss).font(FD.matrix(size))
+        }
+        .foregroundStyle(color)
+    }
+
+    private var dot: some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .fill(color)
+            .frame(width: size * 0.12, height: size * 0.12)
+    }
+}
+
+/// Progress pill v2: % appears from 10%; the bar burns lime → amber → red over the last 30%.
+private struct FDProgressV2: View {
+    let fraction: CGFloat
+    var width: CGFloat
+
+    private func mix(_ a: (Double, Double, Double), _ b: (Double, Double, Double), _ t: Double) -> Color {
+        Color(red: a.0 + (b.0 - a.0) * t, green: a.1 + (b.1 - a.1) * t, blue: a.2 + (b.2 - a.2) * t)
+    }
+
+    private var barColor: Color {
+        let lime = (0.72, 0.95, 0.21), amber = (1.0, 0.62, 0.18), red = (1.0, 0.30, 0.28)
+        if fraction < 0.70 { return mix(lime, lime, 0) }
+        if fraction < 0.85 { return mix(lime, amber, Double((fraction - 0.70) / 0.15)) }
+        return mix(amber, red, Double(min(1, (fraction - 0.85) / 0.15)))
+    }
+
+    var body: some View {
+        let color = barColor
+        ZStack(alignment: .leading) {
+            Capsule().fill(Color.black.opacity(0.35))
+            Capsule()
+                .fill(LinearGradient(colors: [color, color.opacity(0.75)],
+                                     startPoint: .leading, endPoint: .trailing))
+                .frame(width: max(52, fraction * width))
+                .overlay(alignment: .trailing) {
+                    HStack(spacing: 8) {
+                        if fraction >= 0.10 {
+                            Text("\(Int(fraction * 100))%")
+                                .font(.system(size: 12, weight: .heavy))
+                                .foregroundStyle(.black.opacity(0.75))
+                        }
+                        Image(systemName: "circle.circle.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.black.opacity(0.8))
+                    }
+                    .padding(.trailing, 12)
+                }
+                .shadow(color: color.opacity(0.8), radius: 12)
+                .shadow(color: color.opacity(0.45), radius: 30)
+        }
+        .frame(width: width, height: 42)
+    }
+}
+
 private struct FDHUDMock: View {
+    var fraction: CGFloat = 0.32
+    var mm = "09"
+    var ss = "58"
+
     var body: some View {
         FDCard(width: 400) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("18:42").font(FD.matrix(40)).foregroundStyle(.white)
+                        MatrixTimer(mm: mm, ss: ss, size: 40)
                         Text("Write the report intro")
                             .font(.system(size: 13)).foregroundStyle(FD.label).lineLimit(1)
                     }
                     Spacer()
-                    FDInset {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("ENDS 15:04").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
-                            Text("Session time").font(.system(size: 11)).foregroundStyle(FD.label)
-                            Text("STREAK 10:15").font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(FD.amber)
-                        }
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(FD.label)
+                            .padding(8)
+                            .background(Circle().fill(Color.black.opacity(0.35)))
+                        Text("ENDS 15:04")
+                            .font(.system(size: 12, weight: .bold)).foregroundStyle(FD.label)
                     }
                 }
-                FDProgress(fraction: 0.62, trailing: "-06:18", width: 352)
+                FDProgressV2(fraction: fraction, width: 352)
             }
+        }
+    }
+}
+
+/// Pixel-art badge icon (dot-matrix world: achievements are pixels too).
+private struct PixelIcon: View {
+    let pattern: [String]
+    var color: Color = FD.amber
+    var pixel: CGFloat = 2.6
+
+    var body: some View {
+        Canvas { ctx, _ in
+            for (y, row) in pattern.enumerated() {
+                for (x, ch) in Array(row).enumerated() where ch == "X" {
+                    ctx.fill(Path(CGRect(x: CGFloat(x) * pixel, y: CGFloat(y) * pixel,
+                                         width: pixel - 0.4, height: pixel - 0.4)),
+                             with: .color(color))
+                }
+            }
+        }
+        .frame(width: pixel * CGFloat(pattern.first?.count ?? 0),
+               height: pixel * CGFloat(pattern.count))
+    }
+
+    static let flame = ["...X...", "..XX...", "..XXX..", ".XXXXX.", "XXXXXXX", "XX.XXXX", ".XXXXX.", "..XXX.."]
+    static let bolt  = ["...XX..", "..XXX..", ".XXX...", "XXXXXX.", "...XXX.", "..XXX..", ".XXX...", ".XX...."]
+    static let star  = ["...X...", "..XXX..", "XXXXXXX", ".XXXXX.", "..XXX..", ".XX.XX.", "XX...XX", "......."]
+    static let skull = [".XXXXX.", "XXXXXXX", "XX.X.XX", "XXXXXXX", ".XXXXX.", ".X.X.X.", ".XXXXX.", "......."]
+}
+
+private struct FDBadge: View {
+    let icon: [String]
+    let label: String
+    var color: Color = FD.amber
+
+    var body: some View {
+        FDInset {
+            HStack(spacing: 8) {
+                PixelIcon(pattern: icon, color: color)
+                Text(label).font(.system(size: 10, weight: .bold)).tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+        }
+    }
+}
+
+/// Exit confirm v2: no pause exists — only STOP, and stopping counts as Not done. Pulses red live.
+private struct FDStopMock: View {
+    var body: some View {
+        FDCard(width: 360, glow: FD.redLED) {
+            VStack(spacing: 14) {
+                Text("STOP HYPERFOCUS?").font(FD.matrix(26)).foregroundStyle(FD.redLED)
+                    .shadow(color: FD.redLED.opacity(0.7), radius: 12)
+                Text("(рамка и заголовок пульсируют)")
+                    .font(.system(size: 10)).foregroundStyle(FD.label)
+                HStack(spacing: 8) {
+                    PixelIcon(pattern: PixelIcon.skull, color: FD.redLED)
+                    Text("STOPPING COUNTS AS NOT DONE")
+                        .font(.system(size: 11, weight: .bold)).tracking(1)
+                        .foregroundStyle(FD.amber)
+                }
+                HStack(spacing: 10) {
+                    Text("Stop").font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FD.redLED)
+                        .padding(.horizontal, 18).padding(.vertical, 10)
+                        .background(Capsule().fill(FD.redLED.opacity(0.12)))
+                    Text("KEEP GOING")
+                        .font(.system(size: 13, weight: .heavy)).foregroundStyle(.black)
+                        .padding(.horizontal, 24).padding(.vertical, 10)
+                        .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
+                                                                  startPoint: .top, endPoint: .bottom)))
+                        .shadow(color: FD.lime.opacity(0.8), radius: 12)
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 }
@@ -376,65 +525,72 @@ private struct FDAwayMock: View {
     }
 }
 
+/// Completion v2: reaching zero IS Done — no question. Celebration: bonus + achievements row.
 private struct FDCompletionMock: View {
     var body: some View {
         FDCard(width: 380) {
-            VStack(spacing: 16) {
-                Text("MISSION COMPLETE")
+            VStack(spacing: 14) {
+                Text("HYPERFOCUS COMPLETE")
                     .font(.system(size: 11, weight: .bold)).tracking(2)
                     .foregroundStyle(FD.amber)
-                Text("25:00").font(FD.matrix(44)).foregroundStyle(FD.lime)
+                MatrixTimer(mm: "15", ss: "00", size: 44, color: FD.lime)
                     .shadow(color: FD.lime.opacity(0.7), radius: 14)
                 Text("FOCUS TIME").font(.system(size: 10, weight: .semibold)).tracking(1.5)
                     .foregroundStyle(FD.label)
+
+                // Freshly unlocked achievement — the reward moment.
+                FDInset {
+                    HStack(spacing: 10) {
+                        PixelIcon(pattern: PixelIcon.bolt, color: FD.lime)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("NEW ACHIEVEMENT").font(.system(size: 8, weight: .bold)).tracking(1.5)
+                                .foregroundStyle(FD.label)
+                            Text("LASER MIND — zero drifts")
+                                .font(.system(size: 12, weight: .bold)).foregroundStyle(FD.lime)
+                        }
+                    }
+                }
+
+                // Earned badges line up in a row.
                 HStack(spacing: 8) {
-                    statInset("PAUSED", "01:36")
-                    statInset("BREAKS", "2")
-                    statInset("STREAK", "10:15")
+                    FDBadge(icon: PixelIcon.flame, label: "STREAK ×3", color: FD.amber)
+                    FDBadge(icon: PixelIcon.star, label: "TODAY ×2", color: FD.lime)
+                    FDBadge(icon: PixelIcon.flame, label: "FIRST 15M", color: FD.redLED)
                 }
-                HStack(spacing: 10) {
-                    Text("DONE")
-                        .font(.system(size: 13, weight: .heavy)).foregroundStyle(.black)
-                        .padding(.horizontal, 24).padding(.vertical, 10)
-                        .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
-                                                                  startPoint: .top, endPoint: .bottom)))
-                        .shadow(color: FD.lime.opacity(0.8), radius: 12)
-                    Text("Partial").font(.system(size: 13, weight: .medium)).foregroundStyle(FD.amber)
-                        .padding(.horizontal, 16).padding(.vertical, 10)
-                        .background(Capsule().fill(FD.amber.opacity(0.12)))
-                    Text("Not done").font(.system(size: 13, weight: .medium)).foregroundStyle(FD.redLED)
-                        .padding(.horizontal, 16).padding(.vertical, 10)
-                        .background(Capsule().fill(FD.redLED.opacity(0.12)))
-                }
+
+                Text("CONTINUE")
+                    .font(.system(size: 13, weight: .heavy)).foregroundStyle(.black)
+                    .padding(.horizontal, 28).padding(.vertical, 11)
+                    .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
+                                                              startPoint: .top, endPoint: .bottom)))
+                    .shadow(color: FD.lime.opacity(0.8), radius: 12)
             }
             .frame(maxWidth: .infinity)
-        }
-    }
-
-    private func statInset(_ label: String, _ value: String) -> some View {
-        FDInset {
-            VStack(spacing: 3) {
-                Text(label).font(.system(size: 9, weight: .semibold)).tracking(1.2)
-                    .foregroundStyle(FD.label)
-                Text(value).font(FD.matrix(16)).foregroundStyle(.white)
-            }
-            .frame(width: 80)
         }
     }
 }
 
 struct DesignPreviewGalleryBView: View {
     var body: some View {
-        VStack(spacing: 24) {
-            Text("FLIGHT DECK — вариант B (dot-matrix hardware, specs/07)")
+        VStack(spacing: 26) {
+            Text("FLIGHT DECK v2 — организация экранов по фидбеку")
                 .font(.system(size: 12, weight: .medium)).foregroundStyle(.white.opacity(0.8))
-            HStack(alignment: .top, spacing: 28) {
+            HStack(alignment: .top, spacing: 26) {
                 FDStartMock()
-                VStack(spacing: 24) {
-                    FDHUDMock()
-                    FDAwayMock()
+                VStack(spacing: 22) {
+                    FDHUDMock(fraction: 0.32, mm: "09", ss: "58")
+                    FDStopMock()
                 }
                 FDCompletionMock()
+            }
+            VStack(spacing: 8) {
+                Text("Прогресс догорает: зелёный → жёлтый (70%) → красный (85%) → конец")
+                    .font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
+                HStack(spacing: 16) {
+                    FDProgressV2(fraction: 0.45, width: 250)
+                    FDProgressV2(fraction: 0.78, width: 250)
+                    FDProgressV2(fraction: 0.94, width: 250)
+                }
             }
         }
         .padding(36)
