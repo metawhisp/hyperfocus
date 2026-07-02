@@ -80,6 +80,7 @@ enum Constants {
         static let edgeMargin: Double = 8           // pt margin after snapping
         static let clickMaxMovement: Double = 4     // pt; mouseUp under this = click, not drag
         static let clickMaxDuration: Double = 0.3   // s;  mouseUp under this = click, not drag
+        static let longPressSeconds: Double = 0.5   // hold in place this long → quick-start chips
     }
 
     // MARK: Aura geometry (canon §3)

@@ -15,6 +15,9 @@ enum DebugSnapshots {
 
         snap(FocusOrbView().environmentObject(app), "orb", dir, CGSize(width: 96, height: 96))
 
+        snap(FocusOrbView().environmentObject(previewApp(mission: "x", remaining: 100, state: .active)),
+             "orb_active", dir, CGSize(width: 96, height: 96))
+
         snap(StartSessionView(onStart: { _ in }, onCancel: {}).environmentObject(app),
              "start_card", dir, CGSize(width: 392, height: 470))
 

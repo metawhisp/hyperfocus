@@ -8,13 +8,21 @@ import AppKit
 import SwiftUI
 
 final class FocusOrbWindowController {
-    private let app: AppState
+    // weak: AppState (strong) → coordinator → orb controller; a strong back-reference here would
+    // close a retain cycle and leak any non-singleton AppState (previews/tests).
+    private weak var app: AppState?
     private let positionStore: OrbPositionStore
     private let screen: ScreenManager
 
     var onClick: (() -> Void)?
     var onSecondaryClick: ((NSEvent) -> Void)?
-    var onLongPress: (() -> Void)?
+    var onHoverChanged: ((Bool) -> Void)?
+    /// Long-press quick-start (canon §13 #25): began returns whether quick-start was actually shown
+    /// (false → the press falls through to a normal click on release); moved/ended carry the
+    /// pointer's SCREEN coordinates while the button is still held.
+    var onLongPressBegan: (() -> Bool)?
+    var onLongPressMoved: ((NSPoint) -> Void)?
+    var onLongPressEnded: ((NSPoint) -> Void)?
 
     private var panel: KeyablePanel?
 
@@ -28,8 +36,16 @@ final class FocusOrbWindowController {
     var isVisible: Bool { panel?.isVisible ?? false }
     var contentViewForMenu: NSView? { panel?.contentView }
 
+    /// Visible bounds of the screen the orb actually lives on — NOT NSScreen.main, which follows
+    /// the key window and can be a different display in multi-monitor setups.
+    var currentVisibleBounds: CGRect {
+        (panel?.screen ?? NSScreen.main)?.visibleFrame ?? screen.visibleBounds()
+    }
+
     /// Inset of the dot inside the window (so the glow has room and the dot stays centred).
-    private var inset: CGFloat { max(0, (orbWindowSize - CGFloat(app.settings.orbSize)) / 2) }
+    private var inset: CGFloat {
+        max(0, (orbWindowSize - CGFloat(app?.settings.orbSize ?? Constants.Defaults.orbSize)) / 2)
+    }
 
     func show() {
         if panel == nil { build() }
@@ -47,14 +63,14 @@ final class FocusOrbWindowController {
     func resetToDefault() {
         positionStore.reset()
         guard let panel else { return }
-        let vb = screen.visibleBounds()
+        let vb = currentVisibleBounds
         panel.setFrameOrigin(windowOrigin(forDot: positionStore.load(visibleBounds: vb), in: vb))
     }
 
     /// Re-clamp the whole window into the visible bounds after a screen-layout change (canon §3.6).
     func clampIntoVisibleBounds() {
         guard let panel else { return }
-        let vb = screen.visibleBounds()
+        let vb = currentVisibleBounds
         let origin = clampWindow(panel.frame.origin, in: vb)
         panel.setFrameOrigin(origin)
         positionStore.save(dotOrigin(fromWindow: origin))
@@ -63,7 +79,8 @@ final class FocusOrbWindowController {
     // MARK: Build
 
     private func build() {
-        let vb = screen.visibleBounds()
+        guard let app else { return }
+        let vb = currentVisibleBounds
         let origin = windowOrigin(forDot: positionStore.load(visibleBounds: vb), in: vb)
         let p = KeyablePanel(
             contentRect: CGRect(origin: origin, size: CGSize(width: orbWindowSize, height: orbWindowSize)),
@@ -80,7 +97,10 @@ final class FocusOrbWindowController {
         let container = OrbContainerView(frame: CGRect(x: 0, y: 0, width: orbWindowSize, height: orbWindowSize))
         container.onClick = { [weak self] in self?.onClick?() }
         container.onSecondaryClick = { [weak self] e in self?.onSecondaryClick?(e) }
-        container.onLongPress = { [weak self] in self?.onLongPress?() }
+        container.onHoverChanged = { [weak self] h in self?.onHoverChanged?(h) }
+        container.onLongPressBegan = { [weak self] in self?.onLongPressBegan?() ?? false }
+        container.onLongPressMoved = { [weak self] p in self?.onLongPressMoved?(p) }
+        container.onLongPressEnded = { [weak self] p in self?.onLongPressEnded?(p) }
         container.onDragEnded = { [weak self] in self?.snapAndSave() }
 
         let host = NSHostingView(rootView: FocusOrbView().environmentObject(app))
@@ -111,7 +131,7 @@ final class FocusOrbWindowController {
 
     private func snapAndSave() {
         guard let panel else { return }
-        let vb = screen.visibleBounds()
+        let vb = currentVisibleBounds
         let snap = Constants.Orb.edgeSnapDistance
         let margin = Constants.Orb.edgeMargin
         var frame = panel.frame
@@ -132,50 +152,73 @@ final class FocusOrbWindowController {
 private final class OrbContainerView: NSView {
     var onClick: (() -> Void)?
     var onSecondaryClick: ((NSEvent) -> Void)?
-    var onLongPress: (() -> Void)?
+    var onHoverChanged: ((Bool) -> Void)?
+    var onLongPressBegan: (() -> Bool)?
+    var onLongPressMoved: ((NSPoint) -> Void)?
+    var onLongPressEnded: ((NSPoint) -> Void)?
     var onDragEnded: (() -> Void)?
 
     private var mouseDownLocation: NSPoint = .zero
     private var windowOriginAtDown: CGPoint = .zero
-    private var downTimestamp: TimeInterval = 0
     private var maxMovement: CGFloat = 0
     private var longPressWork: DispatchWorkItem?
     private var longPressed = false
 
-    // Simple UX for ADHD (canon §13 #18): short click → start; hold ≥ 0.5 s in place → Settings.
-    private let longPressDuration: TimeInterval = 0.5
-
     override func hitTest(_ point: NSPoint) -> NSView? { self }
+
+    // Hover: subtle "alive" reaction (canon §13 #25).
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero,
+                                       options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) { onHoverChanged?(true) }
+    override func mouseExited(with event: NSEvent) { onHoverChanged?(false) }
 
     override func mouseDown(with event: NSEvent) {
         mouseDownLocation = NSEvent.mouseLocation
         windowOriginAtDown = window?.frame.origin ?? .zero
-        downTimestamp = event.timestamp
         maxMovement = 0
         longPressed = false
+        // Hold in place ≥ longPressSeconds → quick-start chips appear while the button is held.
+        // If the coordinator declines (e.g. a session is running), the press stays a normal click.
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.maxMovement < Constants.Orb.clickMaxMovement else { return }
-            self.longPressed = true
-            self.onLongPress?()
+            if self.onLongPressBegan?() == true { self.longPressed = true }
         }
         longPressWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + longPressDuration, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.Orb.longPressSeconds, execute: work)
     }
 
     override func mouseDragged(with event: NSEvent) {
+        // While quick-start is up, the drag selects a chip — the orb window must not move.
+        if longPressed {
+            onLongPressMoved?(NSEvent.mouseLocation)
+            return
+        }
         let current = NSEvent.mouseLocation
         let dx = current.x - mouseDownLocation.x
         let dy = current.y - mouseDownLocation.y
         maxMovement = max(maxMovement, hypot(dx, dy))
-        if maxMovement >= Constants.Orb.clickMaxMovement { longPressWork?.cancel() }
+        // Only move the window once the gesture is committed as a drag — sub-threshold jitter that
+        // resolves as a click/long-press must not drift the orb.
+        guard maxMovement >= Constants.Orb.clickMaxMovement else { return }
+        longPressWork?.cancel()
         window?.setFrameOrigin(CGPoint(x: windowOriginAtDown.x + dx, y: windowOriginAtDown.y + dy))
     }
 
     override func mouseUp(with event: NSEvent) {
         longPressWork?.cancel()
-        if longPressed { longPressed = false; return }   // Settings already opened on hold
-        let duration = event.timestamp - downTimestamp
-        if maxMovement < Constants.Orb.clickMaxMovement && duration < Constants.Orb.clickMaxDuration {
+        if longPressed {
+            longPressed = false
+            onLongPressEnded?(NSEvent.mouseLocation)   // release over a chip starts the session
+            return
+        }
+        // Stationary release before the long-press fires = click — no duration dead zone.
+        if maxMovement < Constants.Orb.clickMaxMovement {
             onClick?()
         } else {
             onDragEnded?()

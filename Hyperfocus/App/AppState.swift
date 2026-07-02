@@ -12,6 +12,7 @@ final class AppState: ObservableObject {
 
     @Published private(set) var context = SessionContext()
     @Published var useSimulatedCamera = false
+    @Published var orbHovered = false          // drives the orb's "alive" hover reaction
 
     let settings = SettingsStore()
     let store = SessionStore()
@@ -33,14 +34,53 @@ final class AppState: ObservableObject {
 
     /// Dispatch an event through the reducer, then hand the effects to the coordinator.
     func send(_ event: SessionEvent) {
-        if case .enterHyperfocus = event {
-            // Snapshot user-tunable thresholds into the context at session start (canon §8).
-            context.warningThresholdSeconds = Double(settings.warningThresholdSeconds)
-            context.awayThresholdSeconds = Double(settings.awayThresholdSeconds)
-            context.recoverySeconds = Double(settings.recoverySeconds)
-        }
+        if case .enterHyperfocus = event { snapshotThresholds() }
         let effects = SessionReducer.reduce(&context, event)
         coordinator.perform(effects)
+    }
+
+    /// Snapshot user-tunable thresholds into the context at session start (canon §8).
+    private func snapshotThresholds() {
+        context.warningThresholdSeconds = Double(settings.warningThresholdSeconds)
+        context.awayThresholdSeconds = Double(settings.awayThresholdSeconds)
+        context.recoverySeconds = Double(settings.recoverySeconds)
+    }
+
+    // MARK: Quick start (long-press radial, canon §13 #25)
+
+    /// The 3 most recent distinct session durations (minutes), newest first; padded with presets.
+    func recentDurationsMinutes() -> [Int] {
+        var minutes: [Int] = []
+        for session in store.all().reversed() {
+            let m = session.plannedDurationSeconds / 60
+            if m > 0 && !minutes.contains(m) { minutes.append(m) }
+            if minutes.count == 3 { break }
+        }
+        for preset in [25, 15, 45] where minutes.count < 3 && !minutes.contains(preset) {
+            minutes.append(preset)
+        }
+        return Array(minutes.prefix(3))
+    }
+
+    /// Start a session immediately with a chosen duration (no card). Mission defaults to the last
+    /// session's mission, else "Focus". The showStartCard/hideStartCard pair is suppressed so the
+    /// Prepare card never flashes.
+    func quickStart(minutes: Int) {
+        guard context.state == .idle else { return }
+        // Sanitize: a whitespace-only stored mission would be rejected by the reducer's T3 guard
+        // and strand the state machine in .preparing with no card visible.
+        let lastMission = store.all().last?.mission.trimmingCharacters(in: .whitespacesAndNewlines)
+        let config = SessionConfig(
+            mission: (lastMission?.isEmpty == false) ? lastMission! : "Focus",
+            successCondition: nil,
+            plannedDurationSeconds: minutes * 60,
+            intensity: settings.defaultIntensity,
+            cameraEnabled: settings.useCameraForPresence
+        )
+        snapshotThresholds()
+        var effects = SessionReducer.reduce(&context, .orbClicked)
+        effects += SessionReducer.reduce(&context, .enterHyperfocus(config))
+        coordinator.perform(effects.filter { $0 != .showStartCard && $0 != .hideStartCard })
     }
 
     // MARK: Coordinator callbacks (keep the reducer pure — timestamps + persistence live here)

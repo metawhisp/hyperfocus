@@ -57,9 +57,23 @@ final class SessionCoordinator {
     /// Wires the orb here (not in init) because the lazy orb needs a non-nil `appState`.
     func attach(_ appState: AppState) {
         self.appState = appState
-        orb.onClick = { [weak self] in self?.appState?.send(.orbClicked) }
-        orb.onLongPress = { [weak self] in self?.showSettings() }        // hold → Settings (canon §13 #18)
+        orb.onClick = { [weak self] in self?.handleOrbClick() }
+        orb.onHoverChanged = { [weak self] hovering in self?.appState?.orbHovered = hovering }
+        orb.onLongPressBegan = { [weak self] in self?.beginQuickStart() ?? false }
+        orb.onLongPressMoved = { [weak self] point in self?.quickStartMoved(point) }
+        orb.onLongPressEnded = { [weak self] point in self?.finishQuickStart(point) }
         orb.onSecondaryClick = { [weak self] event in self?.showOrbQuickActions(event) }
+    }
+
+    /// Click toggle (canon §13 #25): red sleep → green prepare; pressed again → back to red sleep
+    /// (cancels the card or exits the running session).
+    private func handleOrbClick() {
+        switch appState?.context.state {
+        case .idle:      appState?.send(.orbClicked)
+        case .preparing: appState?.send(.cancelPreparing)
+        case .completed, nil: break                       // completion card is open — decide there
+        default:         appState?.send(.userExited)
+        }
     }
 
     // MARK: Orb + menu-driven windows
@@ -160,6 +174,82 @@ final class SessionCoordinator {
 
     private func beginPresence(warmup: Bool) {
         if warmup { presence?.startWarmup() } else { presence?.startDetection() }
+    }
+
+    // MARK: Quick start (long-press radial, canon §13 #25)
+
+    private var quickStartChips: [(panel: NSPanel, minutes: Int)] = []
+    private let quickStartModel = QuickStartModel()
+
+    /// Long-press began: fade in the 3 most recent durations around the orb (left/right/below by
+    /// preference, falling back to free slots when the orb is snapped to an edge or corner).
+    /// Returns whether quick-start was actually shown.
+    @discardableResult
+    private func beginQuickStart() -> Bool {
+        guard let app = appState, app.context.state == .idle, quickStartChips.isEmpty else { return false }
+        let durations = app.recentDurationsMinutes()
+        let orbFrame = orb.currentFrame
+        let vb = orb.currentVisibleBounds          // the orb's own screen, not the key window's
+        var occupied: [CGRect] = []
+
+        for (index, minutes) in durations.enumerated() {
+            let panel = makeCardPanel(
+                QuickStartChipView(minutes: minutes, index: index, model: quickStartModel),
+                app: app, level: .statusBar)
+            let origin = chipOrigin(index: index, size: panel.frame.size,
+                                    orbFrame: orbFrame, vb: vb, occupied: occupied)
+            panel.setFrameOrigin(origin)
+            panel.orderFrontRegardless()
+            occupied.append(CGRect(origin: origin, size: panel.frame.size))
+            quickStartChips.append((panel, minutes))
+        }
+        return true
+    }
+
+    /// First candidate slot that fits inside the visible bounds without covering the orb or another
+    /// chip; falls back to a clamped preferred slot (worst case: orb wedged into a tiny screen).
+    private func chipOrigin(index: Int, size: CGSize, orbFrame: CGRect, vb: CGRect,
+                            occupied: [CGRect]) -> CGPoint {
+        let gap: CGFloat = 10
+        let left   = CGPoint(x: orbFrame.minX - size.width - gap, y: orbFrame.midY - size.height / 2)
+        let right  = CGPoint(x: orbFrame.maxX + gap, y: orbFrame.midY - size.height / 2)
+        let below  = CGPoint(x: orbFrame.midX - size.width / 2, y: orbFrame.minY - size.height - gap)
+        let below2 = CGPoint(x: below.x, y: below.y - size.height - 6)
+        let above  = CGPoint(x: orbFrame.midX - size.width / 2, y: orbFrame.maxY + gap)
+
+        let preferred: [CGPoint]
+        switch index {
+        case 0:  preferred = [left, below, below2, above, right]
+        case 1:  preferred = [right, below, below2, above, left]
+        default: preferred = [below, below2, above, left, right]
+        }
+        for candidate in preferred {
+            let rect = CGRect(origin: candidate, size: size)
+            if vb.insetBy(dx: 4, dy: 4).contains(rect)
+                && !rect.intersects(orbFrame.insetBy(dx: -4, dy: -4))
+                && !occupied.contains(where: { $0.insetBy(dx: -4, dy: -4).intersects(rect) }) {
+                return candidate
+            }
+        }
+        var fallback = preferred[0]
+        fallback.x = min(max(fallback.x, vb.minX + 4), vb.maxX - size.width - 4)
+        fallback.y = min(max(fallback.y, vb.minY + 4), vb.maxY - size.height - 4)
+        return fallback
+    }
+
+    /// Drag while holding: highlight the chip under the pointer (hover doesn't fire during a drag).
+    private func quickStartMoved(_ screenPoint: NSPoint) {
+        guard !quickStartChips.isEmpty else { return }
+        quickStartModel.highlighted = quickStartChips.firstIndex { $0.panel.frame.contains(screenPoint) }
+    }
+
+    /// Release: start immediately if the pointer is over a chip; otherwise just dismiss.
+    private func finishQuickStart(_ screenPoint: NSPoint) {
+        let hit = quickStartChips.first { $0.panel.frame.contains(screenPoint) }
+        for chip in quickStartChips { chip.panel.orderOut(nil) }
+        quickStartChips.removeAll()
+        quickStartModel.highlighted = nil
+        if let hit { appState?.quickStart(minutes: hit.minutes) }
     }
 
     // MARK: Screen analysis (local distraction detection)
@@ -317,7 +407,7 @@ final class SessionCoordinator {
     }
 
     private func placeNearOrb(_ panel: NSPanel) {
-        let vb = screen.visibleBounds()
+        let vb = orb.currentVisibleBounds
         let orbFrame = orb.currentFrame
         let size = panel.frame.size
         var x = orbFrame.minX - size.width - 12
