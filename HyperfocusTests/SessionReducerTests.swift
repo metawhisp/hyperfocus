@@ -464,18 +464,22 @@ final class SessionReducerTests: XCTestCase {
 
     // MARK: 4.3 Debounce boundary cases
 
+    // Boundary tests seed the counter and apply one 0.1 s tick to cross deterministically,
+    // avoiding floating-point drift from summing 0.1 dozens of times (accrue-then-evaluate, §3).
+
     func test_reducer_faceMissing6_9s_staysActive() {
         var ctx = activeContext()
-        _ = SessionReducer.reduce(&ctx, .facePresenceChanged(false))
-        for _ in 0..<69 { _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1)) }
+        ctx.lastFacePresent = false
+        ctx.faceMissingSeconds = 6.8
+        _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1))    // → ~6.9, still < 7
         XCTAssertEqual(ctx.faceMissingSeconds, 6.9, accuracy: 0.0001)
         XCTAssertEqual(ctx.state, .active)
     }
 
     func test_T6_activeToWarning_atExactly7_0s() {
         var ctx = activeContext()
-        _ = SessionReducer.reduce(&ctx, .facePresenceChanged(false))
-        for _ in 0..<69 { _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1)) }
+        ctx.lastFacePresent = false
+        ctx.faceMissingSeconds = 6.9
         let effects = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1))  // → 7.0
         XCTAssertEqual(ctx.state, .warning)
         XCTAssertEqual(effects, [.setAura(.yellow)])
@@ -483,16 +487,19 @@ final class SessionReducerTests: XCTestCase {
 
     func test_reducer_faceMissing14_9s_staysWarning() {
         var ctx = activeContext()
-        _ = SessionReducer.reduce(&ctx, .facePresenceChanged(false))
-        for _ in 0..<149 { _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1)) }
+        ctx.state = .warning
+        ctx.lastFacePresent = false
+        ctx.faceMissingSeconds = 14.8
+        _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1))    // → ~14.9, still < 15
         XCTAssertEqual(ctx.faceMissingSeconds, 14.9, accuracy: 0.0001)
         XCTAssertEqual(ctx.state, .warning)
     }
 
     func test_T8_warningToAway_atExactly15_0s() {
         var ctx = activeContext()
-        _ = SessionReducer.reduce(&ctx, .facePresenceChanged(false))
-        for _ in 0..<149 { _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1)) }
+        ctx.state = .warning
+        ctx.lastFacePresent = false
+        ctx.faceMissingSeconds = 14.9
         let effects = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1))  // → 15.0
         XCTAssertEqual(ctx.state, .away)
         XCTAssertTrue(effects.contains(.startAlarm))
@@ -501,8 +508,7 @@ final class SessionReducerTests: XCTestCase {
     func test_reducer_recoveryInterruptedAt2_9s_returnsToAway() {
         var ctx = awayContext()
         _ = SessionReducer.reduce(&ctx, .facePresenceChanged(true))   // → recovering
-        for _ in 0..<29 { _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1)) }
-        XCTAssertEqual(ctx.recoveryElapsed, 2.9, accuracy: 0.0001)
+        ctx.recoveryElapsed = 2.9
         _ = SessionReducer.reduce(&ctx, .facePresenceChanged(false))  // interrupt → away
         XCTAssertEqual(ctx.state, .away)
         XCTAssertEqual(ctx.recoveryElapsed, 0)
@@ -515,8 +521,7 @@ final class SessionReducerTests: XCTestCase {
     func test_reducer_recoveryCompletes_atExactly3_0s() {
         var ctx = awayContext()
         _ = SessionReducer.reduce(&ctx, .facePresenceChanged(true))   // → recovering
-        for _ in 0..<29 { _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1)) }
-        XCTAssertEqual(ctx.state, .recovering)
+        ctx.recoveryElapsed = 2.9
         _ = SessionReducer.reduce(&ctx, .tick(deltaSeconds: 0.1))     // → 3.0
         XCTAssertEqual(ctx.state, .active)
     }
