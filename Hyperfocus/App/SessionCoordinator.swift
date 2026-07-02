@@ -432,4 +432,95 @@ final class SessionCoordinator {
             NSWorkspace.shared.open(url)
         }
     }
+
+    #if DEBUG
+    /// Input self-test: asks the WINDOW SERVER which window would receive a click at points across
+    /// the orb (NSWindow.windowNumber(at:) honors per-pixel transparency). MISS = click-through bug.
+    func runOrbHitSelfTest() {
+        guard let orbNumber = orb.windowNumber, orb.isVisible else {
+            NSLog("HFTEST no orb panel visible"); return
+        }
+        let f = orb.currentFrame
+        let probes: [(String, CGPoint)] = [
+            ("center",       CGPoint(x: f.midX, y: f.midY)),
+            ("hollow+4",     CGPoint(x: f.midX + 4, y: f.midY)),
+            ("ring-right",   CGPoint(x: f.midX + 14, y: f.midY)),
+            ("glow-24",      CGPoint(x: f.midX + 24, y: f.midY)),
+            ("corner+6",     CGPoint(x: f.minX + 6, y: f.minY + 6)),
+        ]
+        var interceptors = Set<Int>()
+        for (name, p) in probes {
+            let hit = NSWindow.windowNumber(at: p, belowWindowWithWindowNumber: 0)
+            if hit != orbNumber { interceptors.insert(hit) }
+            NSLog("HFTEST probe=%@ hit=%d orb=%d %@", name, hit, orbNumber,
+                  hit == orbNumber ? "OK" : "MISS")
+        }
+        // Identify every on-screen window that intersects the orb frame: owner, layer, alpha, bounds.
+        let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        for w in info {
+            guard let num = w[kCGWindowNumber as String] as? Int,
+                  let b = w[kCGWindowBounds as String] as? [String: CGFloat] else { continue }
+            let isInterceptor = interceptors.contains(num)
+            let owner = w[kCGWindowOwnerName as String] as? String ?? "?"
+            let layer = w[kCGWindowLayer as String] as? Int ?? -1
+            let alpha = w[kCGWindowAlpha as String] as? Double ?? -1
+            // CGWindow bounds are top-left-origin; just log raw and match by number/orb proximity.
+            if isInterceptor || num == orbNumber {
+                NSLog("HFTEST window num=%d owner=%@ layer=%d alpha=%.3f bounds={%.0f,%.0f %.0fx%.0f}%@",
+                      num, owner, layer, alpha, b["X"] ?? -1, b["Y"] ?? -1,
+                      b["Width"] ?? -1, b["Height"] ?? -1, isInterceptor ? " <-- INTERCEPTOR" : " (orb)")
+            }
+        }
+
+        // Panel flags — the window-server treats the whole panel as click-through; find out why.
+        if let panel = orb.debugPanel {
+            NSLog("HFTEST flags ignoresMouse=%d styleMask=%lu level=%ld visible=%d alpha=%.2f opaque=%d hidesOnDeactivate=%d becomesKeyOnlyIfNeeded=%d canBecomeKey=%d",
+                  panel.ignoresMouseEvents ? 1 : 0, panel.styleMask.rawValue, panel.level.rawValue,
+                  panel.isVisible ? 1 : 0, panel.alphaValue, panel.isOpaque ? 1 : 0,
+                  panel.hidesOnDeactivate ? 1 : 0, panel.becomesKeyOnlyIfNeeded ? 1 : 0,
+                  panel.canBecomeKey ? 1 : 0)
+        }
+
+        // CONTROL: a plain opaque borderless window at screen center — does windowNumber(at:) see
+        // our own app's windows at all? Validates the probe API itself.
+        let vb = screen.visibleBounds()
+        let ctrlFrame = CGRect(x: vb.midX - 50, y: vb.midY - 50, width: 100, height: 100)
+        let ctrl = NSWindow(contentRect: ctrlFrame, styleMask: [.borderless], backing: .buffered, defer: false)
+        ctrl.backgroundColor = .red
+        ctrl.level = .statusBar
+        ctrl.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            let hit = NSWindow.windowNumber(at: CGPoint(x: ctrlFrame.midX, y: ctrlFrame.midY),
+                                            belowWindowWithWindowNumber: 0)
+            NSLog("HFTEST control-window hit=%d ctrl=%d %@", hit, ctrl.windowNumber,
+                  hit == ctrl.windowNumber ? "API-OK" : "API-MISS")
+            ctrl.orderOut(nil)
+
+            // PIPELINE: synthetic mouseDown+Up sent directly to the panel — verifies container →
+            // coordinator → reducer wiring independent of window-server routing.
+            self?.runSyntheticClick()
+        }
+    }
+
+    private func runSyntheticClick() {
+        guard let panel = orb.debugPanel, let app = appState else { return }
+        let pt = NSPoint(x: panel.frame.width / 2, y: panel.frame.height / 2)
+        func ev(_ type: NSEvent.EventType) -> NSEvent? {
+            NSEvent.mouseEvent(with: type, location: pt, modifierFlags: [],
+                               timestamp: ProcessInfo.processInfo.systemUptime,
+                               windowNumber: panel.windowNumber, context: nil,
+                               eventNumber: 0, clickCount: 1, pressure: 1)
+        }
+        let before = app.context.state
+        if let down = ev(.leftMouseDown), let up = ev(.leftMouseUp) {
+            panel.sendEvent(down)
+            panel.sendEvent(up)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NSLog("HFTEST synthetic-click stateBefore=%@ stateAfter=%@ %@",
+                  before.rawValue, app.context.state.rawValue,
+                  app.context.state == .preparing ? "PIPELINE-OK" : "PIPELINE-MISS")
+        }
+    }
+    #endif
 }

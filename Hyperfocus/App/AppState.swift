@@ -142,6 +142,9 @@ final class AppState: ObservableObject {
     #if DEBUG
     /// Populate the context for headless snapshot rendering (DebugSnapshots only).
     func setContextForPreview(_ ctx: SessionContext) { context = ctx }
+
+    /// Window-server hit-test probe over the orb (HF_SELFTEST=1).
+    func runOrbHitSelfTest() { coordinator.runOrbHitSelfTest() }
     #endif
 }
 

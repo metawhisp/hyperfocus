@@ -15,6 +15,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         // Agent app (LSUIElement) — no Dock icon; the orb + menu bar extra are the UI.
         AppState.shared.bootstrap()
+
+        #if DEBUG
+        // Automated input self-test: probe window-server hit-testing over the orb, log, and quit.
+        if ProcessInfo.processInfo.environment["HF_SELFTEST"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                AppState.shared.runOrbHitSelfTest()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { NSApp.terminate(nil) }
+            }
+        }
+        #endif
     }
 
     private func registerBundledFonts() {

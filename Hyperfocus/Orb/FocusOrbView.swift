@@ -20,13 +20,8 @@ struct FocusOrbView: View {
         let ringW = ringD * 0.16                          // ring thickness
 
         ZStack {
-            // Invisible circular hit backing. Transparent borderless windows hit-test PER PIXEL —
-            // a fully clear window would let clicks fall through the hollow center to the window
-            // beneath. A soft 2% disc keeps the whole orb clickable, and being a small circle it
-            // never reads as a square box (unlike a window-background tint).
-            Circle()
-                .fill(Color.black.opacity(0.02))
-                .frame(width: 52, height: 52)
+            // Clickability lives on the AppKit container's circular layer backing (see
+            // FocusOrbWindowController.build) — no hit pixels needed in the SwiftUI tree.
 
             // Outer glow — blurred ring, comfortably inside the window so it is never clipped.
             Circle()

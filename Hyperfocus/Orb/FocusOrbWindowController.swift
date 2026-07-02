@@ -35,6 +35,10 @@ final class FocusOrbWindowController {
     var currentFrame: CGRect { panel?.frame ?? .zero }
     var isVisible: Bool { panel?.isVisible ?? false }
     var contentViewForMenu: NSView? { panel?.contentView }
+    var windowNumber: Int? { panel?.windowNumber }
+    #if DEBUG
+    var debugPanel: NSPanel? { panel }
+    #endif
 
     /// Visible bounds of the screen the orb actually lives on — NOT NSScreen.main, which follows
     /// the key window and can be a different display in multi-monitor setups.
@@ -98,6 +102,14 @@ final class FocusOrbWindowController {
         p.isReleasedWhenClosed = false
 
         let container = OrbContainerView(frame: CGRect(x: 0, y: 0, width: orbWindowSize, height: orbWindowSize))
+        // The window-server computes the click shape from the WINDOW'S OWN surface. SwiftUI content
+        // (NSHostingView) composites via a separate layer tree, so a .clear window is click-dead
+        // everywhere — even over visually opaque pixels (verified by HF_SELFTEST window-server
+        // probes). A near-invisible CIRCULAR backing on the container's layer (part of the window
+        // surface) makes the orb clickable without any square box.
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.03).cgColor
+        container.layer?.cornerRadius = orbWindowSize / 2
         container.onClick = { [weak self] in self?.onClick?() }
         container.onSecondaryClick = { [weak self] e in self?.onSecondaryClick?(e) }
         container.onHoverChanged = { [weak self] h in self?.onHoverChanged?(h) }
@@ -169,6 +181,10 @@ private final class OrbContainerView: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? { self }
 
+    // The orb lives in a nonactivating panel of an LSUIElement app — the app is effectively never
+    // active, so EVERY click is a "first mouse". Without this override AppKit swallows them all.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     // Hover: subtle "alive" reaction (canon §13 #25).
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -182,6 +198,9 @@ private final class OrbContainerView: NSView {
     override func mouseExited(with event: NSEvent) { onHoverChanged?(false) }
 
     override func mouseDown(with event: NSEvent) {
+        #if DEBUG
+        NSLog("HFTEST container.mouseDown")
+        #endif
         mouseDownLocation = NSEvent.mouseLocation
         windowOriginAtDown = window?.frame.origin ?? .zero
         maxMovement = 0
@@ -222,6 +241,9 @@ private final class OrbContainerView: NSView {
         }
         // Stationary release before the long-press fires = click — no duration dead zone.
         if maxMovement < Constants.Orb.clickMaxMovement {
+            #if DEBUG
+            NSLog("HFTEST container.mouseUp -> click")
+            #endif
             onClick?()
         } else {
             onDragEnded?()
