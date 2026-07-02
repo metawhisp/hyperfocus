@@ -107,7 +107,7 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** orb visible on launch on all Spaces, drag vs click disambiguated, snaps to edges, position survives relaunch and screen changes, `xcodebuild test` green.
 **Depends on:** Phase 1 (AppState, SettingsStore).
 
-- [ ] **2.1 OrbPositionStore (TDD)**
+- [x] **2.1 OrbPositionStore (TDD)**
   - Files: `Hyperfocus/Orb/OrbPositionStore.swift`, `HyperfocusTests/OrbPositionStoreTests.swift`
   - RED: `test_positionRoundTripsThroughDefaults`, `test_defaultPositionIsBottomRightWith8ptMargin`, `test_positionClampsIntoVisibleBounds` (JSON `{x,y}` under `hf.orbPosition`; injectable defaults + bounds).
   - Accept: tests green.
@@ -136,15 +136,15 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** T1–T3 reducer tests green; card opens on orb click, cancel returns to idle, `Enter Hyperfocus` fires only with a non-empty mission.
 **Depends on:** Phase 2 (orb click), Phase 1 (coordinator).
 
-- [ ] **3.1 T1 (TDD)**
+- [x] **3.1 T1 (TDD)**
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - RED: `test_T1_idle_orbClicked_toPreparing_emitsShowStartCard`
   - Accept: test green.
-- [ ] **3.2 T2 (TDD)**
+- [x] **3.2 T2 (TDD)**
   - Files: same as 3.1
   - RED: `test_T2_preparing_cancelPreparing_toIdle_emitsHideStartCard`
   - Accept: test green.
-- [ ] **3.3 T3 + mission validation (TDD)**
+- [x] **3.3 T3 + mission validation (TDD)**
   - Files: same as 3.1, plus `Hyperfocus/Session/SessionConfig.swift`
   - RED: `test_T3_preparing_enterHyperfocus_toCountdown_emitsHideStartCard_showCountdown_playVoiceCountdown_startCameraWarmup`, `test_T3_emptyMission_staysPreparing_noEffects` (whitespace-only mission counts as empty).
   - Accept: tests green.
@@ -165,11 +165,11 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** T4/T5 tests green; sequence `ENTER HYPERFOCUS MODE` → `3` → `2` → `1` → `FOCUS` renders with darkening and voice; Esc aborts with nothing saved.
 **Depends on:** Phase 3 (T3 emits `.showCountdown`).
 
-- [ ] **4.1 T4 (TDD)**
+- [x] **4.1 T4 (TDD)**
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - RED: `test_T4_countdown_countdownCompleted_toActive_emitsDismissCountdown_setAuraGreen_startTimer_startPresenceDetection`
   - Accept: test green.
-- [ ] **4.2 T5 (TDD)**
+- [x] **4.2 T5 (TDD)**
   - Files: same as 4.1
   - RED: `test_T5_countdown_userExited_toIdle_emitsDismissCountdown_stopCamera_andDoesNotSave` (abort: no `.saveSession` effect emitted).
   - Accept: test green.
@@ -223,27 +223,27 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** T13, T14, T15, T16 (from `active`/`manualPaused`), T18 tests green; all canon §4 accounting rules covered by named tests; HUD shows live remaining time.
 **Depends on:** Phase 4 (T4 starts the timer).
 
-- [ ] **6.1 SessionTimer (TDD)**
+- [x] **6.1 SessionTimer (TDD)**
   - Files: `Hyperfocus/Session/SessionTimer.swift`, `HyperfocusTests/SessionTimerTests.swift`
   - RED: `test_tickCarriesMonotonicDelta`, `test_deltaUsesMonotonicClockNotWallClock`, `test_stopPreventsFurtherTicks` (injectable clock; 1 Hz on the main run loop; deltas from `ContinuousClock` / `CACurrentMediaTime()`).
   - Accept: tests green.
-- [ ] **6.2 Tick accounting (TDD)**
+- [x] **6.2 Tick accounting (TDD)**
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `Hyperfocus/Session/SessionContext.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - RED: `test_tick_active_decrementsRemaining_incrementsActiveFocus`, `test_tick_decrementClampedTo1Second`, `test_tick_deltaOver5s_excessAddsToPausedSeconds`, `test_tick_warning_stillDecrementsRemaining`.
   - Accept: tests green (canon §4 accounting rules).
-- [ ] **6.3 Streak accounting (TDD)**
+- [x] **6.3 Streak accounting (TDD)**
   - Files: same as 6.2
   - RED: `test_currentStreak_growsWithActiveFocus`, `test_longestStreak_isMaxOfCurrent_updatedEveryTick`, `test_streak_notResetOnWarning`.
   - Accept: tests green.
-- [ ] **6.4 T13/T14 manual pause (TDD)**
+- [x] **6.4 T13/T14 manual pause (TDD)**
   - Files: same as 6.2
   - RED: `test_T13_active_userPaused_toManualPaused_emitsPauseTimer_setAuraDimmed`, `test_T14_manualPaused_userResumed_toActive_emitsResumeTimer_setAuraGreen`, `test_manualPaused_accruesPausedSeconds_resetsStreak_doesNotIncrementBreakCount`.
   - Accept: tests green.
-- [ ] **6.5 T15 completion on zero (TDD)**
+- [x] **6.5 T15 completion on zero (TDD)**
   - Files: same as 6.2
   - RED: `test_T15_active_tickToZero_toCompleted_emitsStopTimer_stopCamera_stopAlarm_setAuraFlashThenHide_playVoiceComplete_showCompletion`, `test_T15_warning_tickToZero_toCompleted`.
   - Accept: tests green.
-- [ ] **6.6 T16 (active/manualPaused) + T18 (TDD)**
+- [x] **6.6 T16 (active/manualPaused) + T18 (TDD)**
   - Files: same as 6.2
   - RED: `test_T16_active_userExited_toExited_emitsStopAll_saveSessionExited`, `test_T16_manualPaused_userExited_toExited`, `test_T18_exited_immediatelyReturnsToIdle`.
   - Accept: tests green.
@@ -280,7 +280,7 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: `Hyperfocus/App/SessionCoordinator.swift`, `Hyperfocus/UI/ActiveHUDView.swift`, `Hyperfocus/Camera/CameraPermissionService.swift`
   - If `notAuthorized`/`unavailable` or `hf.useCameraForPresence = false`, and `hf.allowSessionsWithoutCamera = true`: session runs in manual mode — presence events never fire; only manual pause and exit change the running state (canon §4). HUD camera status uses exactly: `Present`, `Looking for you`, `Away`, `Camera off`, `Permission needed`.
   - Accept: manual — deny permission, session still starts, HUD shows `Camera off`.
-- [ ] **7.6 Camera loss mid-session — `.cameraStateChanged` reducer handling (D1) (TDD)**
+- [x] **7.6 Camera loss mid-session — `.cameraStateChanged` reducer handling (D1) (TDD)**
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `Hyperfocus/Session/SessionContext.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - When `.cameraStateChanged(.unavailable / .disabled / .notAuthorized)` arrives during a running session: in `active` — stay in `active`, presence-driven transitions disabled, timer keeps running, HUD shows `Camera off`; in `warning` — return to `active` applying T7's effect list, `faceMissingSeconds` resets; in `away` or `recovering` — treat exactly as `.facePresenceChanged(true)`: away → `recovering` (T10), then after `recoverySeconds` → `active` (T12, alarm stops, timer resumes). A session must never stay stuck with a looping alarm after the camera disappears.
   - RED: `test_cameraLoss_activeStaysActiveTimerRuns`, `test_cameraLoss_warningReturnsToActive`, `test_cameraLoss_awayEntersRecovering` — these names are cataloged in specs/06 §4.7 (Camera degradation), which is authoritative per D5.
@@ -294,23 +294,23 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** T6–T12 and T16 (from `warning`/`away`/`recovering`) tests green; full manual run via debug menu: green → yellow → red + alarm → recovery countdown → green.
 **Depends on:** Phase 5 (aura), Phase 6 (timer/reducer), Phase 7 (presence events).
 
-- [ ] **8.1 Presence debounce + T6 (TDD)**
+- [x] **8.1 Presence debounce + T6 (TDD)**
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `Hyperfocus/Session/SessionContext.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - RED: `test_faceMissingSeconds_accumulatesOnTicksWhileMissing_resetsOnFacePresent`, `test_T6_active_tickWithFaceMissing7s_toWarning_emitsSetAuraYellow` (threshold from config, `hf.warningThresholdSeconds` = 7).
   - Accept: tests green.
-- [ ] **8.2 T7 (TDD)**
+- [x] **8.2 T7 (TDD)**
   - Files: same as 8.1
   - RED: `test_T7_warning_facePresent_toActive_emitsSetAuraGreen_noRecoveryDelay_counterResets`
   - Accept: test green.
-- [ ] **8.3 T8/T9 (TDD)**
+- [x] **8.3 T8/T9 (TDD)**
   - Files: same as 8.1
   - RED: `test_T8_warning_tickWithFaceMissing15s_toAway_emitsSetAuraRed_pauseTimer_startAlarm_playVoiceAway_showAwayCard_incrementsBreakCount_resetsStreak`, `test_T9_active_simulateAway_toAway_sameEffectsAsT8`, `test_breakCount_incrementsOncePerAwayEntry` (`hf.awayThresholdSeconds` = 15).
   - Accept: tests green.
-- [ ] **8.4 T10/T11/T12 recovery (TDD)**
+- [x] **8.4 T10/T11/T12 recovery (TDD)**
   - Files: same as 8.1
   - RED: `test_T10_away_facePresent_toRecovering_emitsShowRecoveryCountdown_alarmKeepsPlaying`, `test_T11_recovering_faceLost_toAway_emitsHideRecoveryCountdown`, `test_T12_recovering_facePresent3s_toActive_emitsStopAlarm_hideAwayCard_hideRecoveryCountdown_setAuraGreen_resumeTimer_playVoiceRestored` (`hf.recoverySeconds` = 3).
   - Accept: tests green.
-- [ ] **8.5 T16 remaining sources (TDD)**
+- [x] **8.5 T16 remaining sources (TDD)**
   - Files: same as 8.1
   - RED: `test_T16_warning_userExited_toExited`, `test_T16_away_userExited_toExited_stopsAlarm_hidesAwayCard`, `test_T16_recovering_userExited_toExited`.
   - Accept: tests green.
@@ -335,12 +335,12 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** SessionStore + T17 tests green; a finished session round-trips to `sessions.json` (on disk under App Sandbox: `~/Library/Containers/com.hyperfocus.app/Data/Library/Application Support/Hyperfocus/sessions.json`) and shows in History; orb returns to idle.
 **Depends on:** Phase 6 (T15 emits `.showCompletion`), Phase 8 (stats to display).
 
-- [ ] **9.1 SessionStore (TDD)**
+- [x] **9.1 SessionStore (TDD)**
   - Files: `Hyperfocus/Session/SessionStore.swift`, `HyperfocusTests/SessionStoreTests.swift`
   - RED: `test_append_persistsPrettyPrintedJSON`, `test_all_loadsRoundTrippedSessions`, `test_clear_removesAll`, `test_createsApplicationSupportDirectoryIfMissing` (injectable directory URL per canon §7; API `append(_:)`, `all()`, `clear()`).
   - Note: implementation pre-exists from Phase 0 — write the catalog tests from specs/06 §4 to verify it (they may pass immediately); do not re-stub or rewrite working code. The red-first rule applies only to code that does not exist yet.
   - Accept: tests green.
-- [ ] **9.2 T17 (TDD)**
+- [x] **9.2 T17 (TDD)**
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - RED: `test_T17_completed_resultSaved_toIdle_emitsSaveSession_hideCompletion_orbFlash`, `test_resultSaved_carriesNextActionIntoSavedSession`.
   - Accept: tests green.
