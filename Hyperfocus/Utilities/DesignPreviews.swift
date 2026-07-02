@@ -347,15 +347,11 @@ private struct FDHUDMock: View {
                             .font(.system(size: 13)).foregroundStyle(FD.label).lineLimit(1)
                     }
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 8) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(FD.label)
-                            .padding(8)
-                            .background(Circle().fill(Color.black.opacity(0.35)))
-                        Text("ENDS 15:04")
-                            .font(.system(size: 12, weight: .bold)).foregroundStyle(FD.label)
-                    }
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(FD.label)
+                        .padding(8)
+                        .background(Circle().fill(Color.black.opacity(0.35)))
                 }
                 FDProgressV2(fraction: fraction, width: 352)
             }
@@ -552,18 +548,29 @@ private struct FDCompletionMock: View {
                 }
 
                 // Earned badges line up in a row.
-                HStack(spacing: 8) {
-                    FDBadge(icon: PixelIcon.flame, label: "STREAK ×3", color: FD.amber)
+                HStack(spacing: 6) {
+                    FDBadge(icon: PixelIcon.flame, label: "×3", color: FD.amber)
                     FDBadge(icon: PixelIcon.star, label: "TODAY ×2", color: FD.lime)
-                    FDBadge(icon: PixelIcon.flame, label: "FIRST 15M", color: FD.redLED)
+                    FDBadge(icon: PixelIcon.bolt, label: "FIRST 15M", color: FD.redLED)
                 }
 
-                Text("CONTINUE")
-                    .font(.system(size: 13, weight: .heavy)).foregroundStyle(.black)
-                    .padding(.horizontal, 28).padding(.vertical, 11)
-                    .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
-                                                              startPoint: .top, endPoint: .bottom)))
-                    .shadow(color: FD.lime.opacity(0.8), radius: 12)
+                // The timer is done — but did the MISSION get done? We can't know; ask.
+                Text("Did you complete the mission?")
+                    .font(.system(size: 12, weight: .medium)).foregroundStyle(.white.opacity(0.75))
+                HStack(spacing: 8) {
+                    Text("DONE")
+                        .font(.system(size: 13, weight: .heavy)).foregroundStyle(.black)
+                        .padding(.horizontal, 22).padding(.vertical, 10)
+                        .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
+                                                                  startPoint: .top, endPoint: .bottom)))
+                        .shadow(color: FD.lime.opacity(0.8), radius: 12)
+                    Text("Partial").font(.system(size: 12, weight: .medium)).foregroundStyle(FD.amber)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(Capsule().fill(FD.amber.opacity(0.12)))
+                    Text("Not done").font(.system(size: 12, weight: .medium)).foregroundStyle(FD.redLED)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(Capsule().fill(FD.redLED.opacity(0.12)))
+                }
             }
             .frame(maxWidth: .infinity)
         }
