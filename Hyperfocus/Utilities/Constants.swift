@@ -68,7 +68,7 @@ enum Constants {
         static let voiceStyle: VoiceStyle = .calm
         static let voicePersona: VoicePersona = .caspian
         static let focusSoundEnabled = true
-        static let focusSoundMode: FocusSoundMode = .brown   // speaker-safe default
+        static let focusSoundMode: FocusSoundMode = .pad     // our generated ambient pad (canon #29)
         static let focusSoundVolume: Double = 0.4            // slider is pre-scaled: 1.0 ≈ whisper ceiling
         static let auraIntensity: Double = 0.7      // range 0.2–1.0
         static let auraThickness: Double = 1.0      // range 0.5–1.5, multiplier on Aura.baseThickness

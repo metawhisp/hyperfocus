@@ -85,7 +85,7 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
         case .droneFifth: return 0.377         // RMS .53, tremolo .9 → ×.377
         case .warmHybrid: return 0.283         // RMS .70 → ×.257, ×1.10 sub boost ≈ .283
         case .lockIn: return 1.0               // per-layer amps already RMS-targeted ≈ .18 combined
-        case .pad: return 0.185                // measured: full render sim (chorus+reverb) → raw RMS .18
+        case .pad: return 1.0                  // PadRenderer applies PadBank.masterScale itself
         }
     }
 
@@ -164,70 +164,8 @@ enum LockInBank {
     ]
 }
 
-// MARK: PAD engine — real pad synthesis (unison detune + breathing voices + Freeverb-lite)
-// Recipe per production practice (detuned oscillator stacks, slow ASYNC LFOs at unrelated rates,
-// generous reverb — the reverb is what turns tones into music). No noise anywhere.
-
-struct PadNote {
-    let freq: Double
-    let ampL: Float
-    let ampR: Float
-    let lfoRate: Double     // slow, mutually unrelated → the texture never repeats
-    let lfoPhase: Double
-}
-
-enum PadBank {
-    // A/E chord; A3-left / C4(260)-right keeps the 40 Hz interaural offset from the reference.
-    static let notes: [PadNote] = [
-        PadNote(freq: 110.00, ampL: 0.45, ampR: 0.45, lfoRate: 0.013, lfoPhase: 0.0),   // A2
-        PadNote(freq: 164.81, ampL: 0.35, ampR: 0.35, lfoRate: 0.019, lfoPhase: 1.7),   // E3
-        PadNote(freq: 220.00, ampL: 0.42, ampR: 0.18, lfoRate: 0.027, lfoPhase: 3.9),   // A3 → L
-        PadNote(freq: 260.00, ampL: 0.18, ampR: 0.42, lfoRate: 0.023, lfoPhase: 2.6),   // ~C4 → R
-        PadNote(freq: 329.63, ampL: 0.16, ampR: 0.16, lfoRate: 0.041, lfoPhase: 5.1),   // E4 sparkle
-    ]
-    static let unison: [Double] = [0.9974, 1.0, 1.0029]   // ±~0.27% detune chorus
-    static let octaveAmp: Float = 0.22                     // 2nd partial → «звонкость», not hiss
-}
-
-/// Freeverb-lite (public-domain Schroeder/Moorer design): 4 filtered-feedback combs + 2 allpasses.
-/// Enough echo density per CCRMA; right channel uses the classic +23-sample stereo spread.
-final class FreeverbLite {
-    private var combBufs: [[Float]]
-    private var combIdx = [Int](repeating: 0, count: 4)
-    private var combLP = [Float](repeating: 0, count: 4)
-    private var apBufs: [[Float]]
-    private var apIdx = [Int](repeating: 0, count: 2)
-    private let feedback: Float = 0.86
-    private let damp: Float = 0.30
-    private let apGain: Float = 0.5
-
-    init(sampleRate: Double, spread: Int) {
-        let scale = sampleRate / 44_100.0
-        let combs = [1116, 1188, 1277, 1356].map { Int(Double($0 + spread) * scale) }
-        let aps = [556, 441].map { Int(Double($0 + spread) * scale) }
-        combBufs = combs.map { [Float](repeating: 0, count: $0) }
-        apBufs = aps.map { [Float](repeating: 0, count: $0) }
-    }
-
-    func process(_ input: Float) -> Float {
-        var out: Float = 0
-        for c in 0..<4 {
-            let buf = combBufs[c][combIdx[c]]
-            out += buf
-            combLP[c] = buf * (1 - damp) + combLP[c] * damp
-            combBufs[c][combIdx[c]] = input + combLP[c] * feedback
-            combIdx[c] = (combIdx[c] + 1) % combBufs[c].count
-        }
-        for a in 0..<2 {
-            let buf = apBufs[a][apIdx[a]]
-            let y = -out + buf
-            apBufs[a][apIdx[a]] = out + buf * apGain
-            apIdx[a] = (apIdx[a] + 1) % apBufs[a].count
-            out = y
-        }
-        return out
-    }
-}
+// PAD engine lives in production code now (Audio/PadSynth.swift): PadBank + FreeverbLite +
+// PadRenderer are shared — the gallery auditions the exact same render the app ships.
 
 // MARK: Engine — phase-continuous glides, RMS meter, whisper ceiling
 
@@ -254,10 +192,8 @@ final class SoundLabEngine: ObservableObject {
     private var tonePhases = [Double](repeating: 0, count: LockInBank.tones.count)
     private var toneGL = [Float](repeating: 0, count: LockInBank.tones.count)   // smoothed L gains
     private var toneGR = [Float](repeating: 0, count: LockInBank.tones.count)
-    // pad state: 5 notes × 3 unison × (fund + octave) phases + per-channel reverbs
-    private var padPhases = [Double](repeating: 0, count: PadBank.notes.count * PadBank.unison.count * 2)
-    private var reverbL: FreeverbLite?
-    private var reverbR: FreeverbLite?
+    // pad: shared production renderer (Audio/PadSynth.swift) — gallery == shipped sound
+    private var pad: PadRenderer?
 
     func play(_ c: SoundCandidate, volume: Float) {
         targetGain = volume
@@ -265,6 +201,11 @@ final class SoundLabEngine: ObservableObject {
         gain = 0
         phases = [Double](repeating: 0, count: 8)
         sampleIndex = 0; rmsAccum = 0; rmsCount = 0
+        if c == .pad && pad == nil {
+            // Allocate off the render thread.
+            let sr = engine.outputNode.inputFormat(forBus: 0).sampleRate
+            pad = PadRenderer(sampleRate: sr > 0 ? sr : 44_100)
+        }
         if node == nil { buildNode() }
         if !engine.isRunning { try? engine.start() }
         playing = c
@@ -292,10 +233,6 @@ final class SoundLabEngine: ObservableObject {
 
             let isLockIn = self.candidate == .lockIn
             let isPad = self.candidate == .pad
-            if isPad && self.reverbL == nil {
-                self.reverbL = FreeverbLite(sampleRate: sr, spread: 0)
-                self.reverbR = FreeverbLite(sampleRate: sr, spread: 23)
-            }
             for frame in 0..<Int(frameCount) {
                 if self.gain < self.targetGain { self.gain = min(self.targetGain, self.gain + fadeStep) }
                 if self.gain > self.targetGain { self.gain = max(self.targetGain, self.gain - fadeStep) }
@@ -306,33 +243,10 @@ final class SoundLabEngine: ObservableObject {
                 var right: Float = 0
 
                 if isPad {
-                    // Dry sum: each note = 3 detuned unison voices + a soft octave partial,
-                    // amplitude breathing on slow unrelated LFOs. Then Freeverb per channel.
-                    var dryL: Float = 0
-                    var dryR: Float = 0
-                    var pi = 0
-                    for note in PadBank.notes {
-                        let breathe = Float(0.65 + 0.35 * sin(twoPi * note.lfoRate * t + note.lfoPhase))
-                        var voice: Float = 0
-                        for ratio in PadBank.unison {
-                            let f = note.freq * ratio
-                            self.padPhases[pi] += twoPi * f / sr
-                            if self.padPhases[pi] > twoPi { self.padPhases[pi] -= twoPi }
-                            voice += Float(sin(self.padPhases[pi]))
-                            self.padPhases[pi + 1] += twoPi * f * 2 / sr
-                            if self.padPhases[pi + 1] > twoPi { self.padPhases[pi + 1] -= twoPi }
-                            voice += Float(sin(self.padPhases[pi + 1])) * PadBank.octaveAmp
-                            pi += 2
-                        }
-                        voice = voice / 3 * breathe
-                        dryL += voice * note.ampL
-                        dryR += voice * note.ampR
+                    // Shared production render — already master-scaled to raw RMS ≈ .18.
+                    if let out = self.pad?.render(t: t) {
+                        left = out.left; right = out.right
                     }
-                    dryL *= scale; dryR *= scale
-                    let wetL = self.reverbL?.process(dryL) ?? 0
-                    let wetR = self.reverbR?.process(dryR) ?? 0
-                    left = dryL * 0.55 + wetL * 0.45
-                    right = dryR * 0.55 + wetR * 0.45
                 } else if isLockIn {
                     // 90 s audition cycle through the measured sections; ~3 s smoothed crossfades.
                     let u = (t.truncatingRemainder(dividingBy: 90)) / 90
