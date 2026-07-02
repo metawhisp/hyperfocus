@@ -191,7 +191,7 @@ final class SessionCoordinator {
             onFinish: closeOnboarding,
             screenAuthorized: { [weak self] in self?.screenPermission.isAuthorized ?? false })
         let w = makeStandardWindow(title: "Welcome to Hyperfocus", view: view,
-                                   size: CGSize(width: 480, height: 500))
+                                   size: CGSize(width: 530, height: 520))
         onboardingWindow = w
         // First-run window goes to a display the user isn't using fullscreen — never on top
         // of a fullscreen app, and no forced Space switch on multi-display setups.

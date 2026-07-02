@@ -30,10 +30,10 @@ enum DebugSnapshots {
         // Onboarding permission steps (copy + rhythm review).
         snap(OnboardingView(requestCamera: { _ in }, requestScreen: { _ in },
                             onStartFirstSession: { _, _ in }, onFinish: {}, step: 2),
-             "onboarding_camera", dir, CGSize(width: 480, height: 500))
+             "onboarding_camera", dir, CGSize(width: 530, height: 520))
         snap(OnboardingView(requestCamera: { _ in }, requestScreen: { _ in },
                             onStartFirstSession: { _, _ in }, onFinish: {}, step: 3),
-             "onboarding_screen", dir, CGSize(width: 480, height: 500))
+             "onboarding_screen", dir, CGSize(width: 530, height: 520))
 
         // Aura frame uniformity check (A1): even glow along the whole perimeter, corners included.
         let auraModel = AuraModel()

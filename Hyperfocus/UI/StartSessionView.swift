@@ -26,7 +26,11 @@ struct StartSessionView: View {
         return selectedMinutes
     }
 
-    private var canStart: Bool { !trimmedMission.isEmpty && resolvedMinutes != nil }
+    // Mission is optional — the CTA is live immediately; an empty mission gets an
+    // auto-numbered name so history stays meaningful (user: "хочу сразу нажать Enter").
+    private var canStart: Bool { resolvedMinutes != nil }
+
+    private var autoMission: String { "Hyperfocus Task #\(app.store.all().count + 1)" }
 
     var body: some View {
         FDCard(width: 380) {
@@ -79,42 +83,33 @@ struct StartSessionView: View {
         }
     }
 
-    // One fixed-height slot: the chips and the custom input swap IN PLACE with a crossfade —
-    // nothing below ever moves (user: "чтобы в том же самом месте появлялось, ничего не прыгало").
-    // if/else (not opacity layers): an invisible TextField would stay in the key-view loop and
-    // silently swallow Tab + keystrokes.
+    // The presets never leave; the CUSTOM chip itself morphs into the minutes field in its own
+    // slot (user: no second row, nothing jumps — type or just click another preset to leave).
+    // if/else (not opacity layers): an invisible TextField would stay in the key-view loop
+    // and silently swallow Tab + keystrokes.
     private var durationRow: some View {
-        ZStack(alignment: .leading) {
+        HStack(spacing: 8) {
+            ForEach(Constants.Copy.durationPresetsMinutes, id: \.self) { m in
+                FDChip(label: "\(m)", selected: !isCustom && selectedMinutes == m) {
+                    isCustom = false
+                    customFocused = false
+                    selectedMinutes = m
+                }
+            }
             if isCustom {
-                HStack(spacing: 8) {
-                    FDChip(label: "‹", selected: false) {
-                        isCustom = false
-                        customFocused = false
-                    }
-                    FDInset {
-                        TextField("1–180", text: $customMinutes)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.white)
-                            .focused($customFocused)
-                            .frame(width: 56)
-                    }
-                    Text("MIN")
-                        .font(.system(size: 10, weight: .bold)).tracking(1.2)
-                        .foregroundStyle(FD.label)
+                FDInset {
+                    TextField("1–180", text: $customMinutes)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .focused($customFocused)
+                        .frame(width: 52)
                 }
                 .transition(.opacity)
             } else {
-                HStack(spacing: 8) {
-                    ForEach(Constants.Copy.durationPresetsMinutes, id: \.self) { m in
-                        FDChip(label: "\(m)", selected: selectedMinutes == m) {
-                            selectedMinutes = m
-                        }
-                    }
-                    FDChip(label: "CUSTOM", selected: false) {
-                        isCustom = true
-                        DispatchQueue.main.async { customFocused = true }
-                    }
+                FDChip(label: "CUSTOM", selected: false) {
+                    isCustom = true
+                    DispatchQueue.main.async { customFocused = true }
                 }
                 .transition(.opacity)
             }
@@ -124,9 +119,9 @@ struct StartSessionView: View {
     }
 
     private func start() {
-        guard let minutes = resolvedMinutes, !trimmedMission.isEmpty else { return }
+        guard let minutes = resolvedMinutes else { return }
         let config = SessionConfig(
-            mission: trimmedMission,
+            mission: trimmedMission.isEmpty ? autoMission : trimmedMission,
             successCondition: nil,
             plannedDurationSeconds: minutes * 60,
             intensity: app.settings.defaultIntensity,
