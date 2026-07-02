@@ -335,15 +335,22 @@ final class SessionCoordinator {
         return fallback
     }
 
+    /// The chip's grab zone: the VISIBLE digits (window margins are glow room, and with the fat
+    /// ghost-glow margins neighboring windows overlap) plus a forgiving 12pt tolerance ring.
+    private func chipHitRect(_ panel: NSPanel) -> CGRect {
+        visibleRect(origin: panel.frame.origin, size: panel.frame.size, m: .chip)
+            .insetBy(dx: -12, dy: -12)
+    }
+
     /// Drag while holding: highlight the chip under the pointer (hover doesn't fire during a drag).
     private func quickStartMoved(_ screenPoint: NSPoint) {
         guard !quickStartChips.isEmpty else { return }
-        quickStartModel.highlighted = quickStartChips.firstIndex { $0.panel.frame.contains(screenPoint) }
+        quickStartModel.highlighted = quickStartChips.firstIndex { chipHitRect($0.panel).contains(screenPoint) }
     }
 
     /// Release: start immediately if the pointer is over a chip; otherwise just dismiss.
     private func finishQuickStart(_ screenPoint: NSPoint) {
-        let hit = quickStartChips.first { $0.panel.frame.contains(screenPoint) }
+        let hit = quickStartChips.first { chipHitRect($0.panel).contains(screenPoint) }
         for chip in quickStartChips { chip.panel.orderOut(nil) }
         quickStartChips.removeAll()
         quickStartModel.highlighted = nil
@@ -610,7 +617,7 @@ final class SessionCoordinator {
         let top: CGFloat
         let bottom: CGFloat
         static let card = CardMargins(horizontal: 60, top: 44, bottom: 84)   // FDCard: r34, +20 down
-        static let chip = CardMargins(horizontal: 18, top: 12, bottom: 26)   // chips: r8–10, +4 down
+        static let chip = CardMargins(horizontal: 44, top: 36, bottom: 44)   // ghost digits: lime glow r18 ×1.15
     }
 
     private func makeCardPanel(_ view: some View, app: AppState, level: NSWindow.Level,

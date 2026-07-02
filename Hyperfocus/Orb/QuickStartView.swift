@@ -10,6 +10,9 @@ final class QuickStartModel: ObservableObject {
     @Published var highlighted: Int?
 }
 
+// Gallery-picked design E "GHOST NUMBERS" (canon #34): no containers — big glowing matrix
+// digits materialize out of a blur; the one under the drag turns lime, grows and gets an
+// underline tick. A dark text shadow keeps the digits readable over light desktops.
 struct QuickStartChipView: View {
     let minutes: Int
     let index: Int
@@ -18,23 +21,27 @@ struct QuickStartChipView: View {
 
     var body: some View {
         let hot = model.highlighted == index
-        Text("\(minutes) min")
-            .font(.system(size: 12, weight: .bold))
-            .foregroundStyle(hot ? Color.black : FD.label)
-            .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(
-                Group {
-                    if hot { Capsule().fill(FD.limeGradient) }
-                    else { Capsule().fill(Color.black.opacity(0.30)) }
-                }
-            )
-            .shadow(color: hot ? FD.lime.opacity(0.7) : .black.opacity(0.4), radius: hot ? 10 : 8, y: hot ? 0 : 4)
-            .scaleEffect(hot ? 1.12 : (appeared ? 1.0 : 0.7))
-            .opacity(appeared ? 1 : 0)
-            .animation(.spring(response: 0.28, dampingFraction: 0.75), value: hot)
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.22).delay(Double(index) * 0.05)) { appeared = true }
-            }
-            .preferredColorScheme(.dark)
+        VStack(spacing: 3) {
+            Text("\(minutes)")
+                .font(FD.matrix(26))
+                .foregroundStyle(hot ? FD.lime : .white.opacity(0.92))
+                .shadow(color: .black.opacity(0.75), radius: 3, y: 1)
+                .shadow(color: FD.lime.opacity(hot ? 1.0 : 0.35), radius: hot ? 18 : 8)
+            Text("MIN")
+                .font(.system(size: 8, weight: .bold)).tracking(1.6)
+                .foregroundStyle(.white.opacity(0.6))
+                .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
+            Rectangle().fill(FD.lime)
+                .frame(width: hot ? 34 : 0, height: 2)
+                .shadow(color: FD.lime.opacity(0.9), radius: 4)
+        }
+        .scaleEffect((hot ? 1.15 : 1) * (appeared ? 1 : 0.6))
+        .blur(radius: appeared ? 0 : 6)
+        .opacity(appeared ? 1 : 0)
+        .animation(.spring(response: 0.28, dampingFraction: 0.75), value: hot)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.35).delay(Double(index) * 0.12)) { appeared = true }
+        }
+        .preferredColorScheme(.dark)
     }
 }
