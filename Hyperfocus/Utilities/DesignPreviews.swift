@@ -339,21 +339,23 @@ private struct FDHUDMock: View {
 
     var body: some View {
         FDCard(width: 400) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        MatrixTimer(mm: mm, ss: ss, size: 40)
-                        Text("Write the report intro")
-                            .font(.system(size: 13)).foregroundStyle(FD.label).lineLimit(1)
-                    }
-                    Spacer()
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(FD.label)
-                        .padding(8)
-                        .background(Circle().fill(Color.black.opacity(0.35)))
+            VStack(spacing: 16) {
+                // Countdown + mission — centered; the close button stays pinned to the corner.
+                VStack(spacing: 6) {
+                    MatrixTimer(mm: mm, ss: ss, size: 40)
+                    Text("Write the report intro")
+                        .font(.system(size: 13)).foregroundStyle(FD.label).lineLimit(1)
                 }
+                .frame(maxWidth: .infinity)
                 FDProgressV2(fraction: fraction, width: 352)
+            }
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(FD.label)
+                    .padding(8)
+                    .background(Circle().fill(Color.black.opacity(0.35)))
+                    .offset(x: 8, y: -8)
             }
         }
     }
