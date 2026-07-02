@@ -448,23 +448,18 @@ private struct FDStartMock: View {
                         .background(Circle().fill(Color.black.opacity(0.35)))
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    FDInset {
-                        HStack {
-                            Text("Write the report intro")
-                                .font(.system(size: 14)).foregroundStyle(.white)
-                            Spacer()
-                        }.frame(width: 300)
-                    }
-                    // Smart suggestion pulled from the screen context (frontmost window) — one tap fills it.
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 10)).foregroundStyle(FD.amber)
-                        Text("Continue: «Q3 report.numbers»")
-                            .font(.system(size: 11, weight: .medium)).foregroundStyle(FD.amber)
-                    }
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Capsule().fill(FD.amber.opacity(0.10)))
+                // Mission input with the magic wand inside, right edge: tap → the mission is
+                // generated from the local screen context (frontmost window).
+                FDInset {
+                    HStack {
+                        Text("Write the report intro")
+                            .font(.system(size: 14)).foregroundStyle(.white)
+                        Spacer()
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(FD.lime)
+                            .shadow(color: FD.lime.opacity(0.7), radius: 6)
+                    }.frame(width: 300)
                 }
 
                 HStack(spacing: 8) {
