@@ -13,10 +13,16 @@ final class CameraPresenceService: NSObject, PresenceDetecting, AVCaptureVideoDa
     private let session = AVCaptureSession()
     private let output = AVCaptureVideoDataOutput()
     private let queue = DispatchQueue(label: Constants.Camera.queueLabel)
-    private let request = VNDetectFaceRectanglesRequest()
+    // Revision 3 reports head yaw/pitch/roll — needed for attention (not just presence) detection.
+    private let request: VNDetectFaceRectanglesRequest = {
+        let r = VNDetectFaceRectanglesRequest()
+        r.revision = VNDetectFaceRectanglesRequestRevision3
+        return r
+    }()
 
     private var lastDetection: CFTimeInterval = 0
     private var lastReported: Bool?          // nil until first reading — emit change-only + initial
+    private var lastDebugLog: CFTimeInterval = 0
 
     func startWarmup() { configureAndStart() }
 
@@ -74,11 +80,33 @@ final class CameraPresenceService: NSObject, PresenceDetecting, AVCaptureVideoDa
 
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .leftMirrored, options: [:])
         try? handler.perform([request])
-        let facePresent = !(request.results?.isEmpty ?? true)
+        let faces = request.results ?? []
 
-        if lastReported != facePresent {
-            lastReported = facePresent
-            emit(facePresent ? .facePresent : .faceMissing)
+        // Present = a face is in frame AND roughly facing the screen. A user staring at their phone
+        // or turned away still has a detectable face — the attention cone (|yaw| ≤ ~34°,
+        // |pitch| ≤ ~31°) is what makes the session react to drifting, not just to leaving.
+        let present = faces.contains { face in
+            let yaw = face.yaw?.doubleValue ?? 0
+            let pitch = face.pitch?.doubleValue ?? 0
+            return abs(yaw) <= 0.6 && abs(pitch) <= 0.55
+        }
+
+        #if DEBUG
+        let nowT = CACurrentMediaTime()
+        if nowT - lastDebugLog > 3 {
+            lastDebugLog = nowT
+            let f = faces.first
+            NSLog("HFCAM faces=%d yaw=%.2f pitch=%.2f present=%d",
+                  faces.count, f?.yaw?.doubleValue ?? 0, f?.pitch?.doubleValue ?? 0, present ? 1 : 0)
+        }
+        #endif
+
+        if lastReported != present {
+            lastReported = present
+            #if DEBUG
+            NSLog("HFCAM emit %@", present ? "facePresent" : "faceMissing")
+            #endif
+            emit(present ? .facePresent : .faceMissing)
         }
         // pixelBuffer is not retained, copied, or written anywhere — discarded here.
     }
