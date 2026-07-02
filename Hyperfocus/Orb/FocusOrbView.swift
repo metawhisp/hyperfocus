@@ -1,78 +1,194 @@
-// FocusOrbView.swift — ring orb (canon §13 #25 v3): a glowing colored ring with a hollow white core.
-// Idle = deep-red sleeping ring; engaged = morphs green (animated color crossfade). Hover partially
-// fills the hollow center and brightens the glow. No particles.
+// FocusOrbView.swift — production orb v4 "ring ⇄ particles" (canon §13 #25, user-approved design).
+// Off/idle = calm red ring. Powering on = the ring dissolves into a BRIGHT rotating green particle
+// sphere — same dots, two forms. The light radiates from the sphere itself (inner bloom + halo):
+// an ADHD-grade beacon, not a whisper. Warning/away recolor the lit sphere amber/red.
 
 import SwiftUI
 
-/// Window footprint for the orb: sized so glow × hover × breathe never clips at the edges.
+/// Window footprint for the orb: sized so halo × hover scale never clips at the edges.
 let orbWindowSize: CGFloat = 76
 
-struct FocusOrbView: View {
-    @EnvironmentObject var app: AppState
-    @State private var breathe = false
+// MARK: Renderer — one entity, two forms (also drives the DEBUG live previews)
+
+struct RingToParticlesOrb: View {
+    let t: Double          // drives sphere rotation
+    let progress: Double   // 0 = ring (off) … 1 = rotating particle sphere (on)
+    var diameter: CGFloat = 46
+    var brightness: Double = 2.2
+    /// When set, overrides the built-in off→on color mix (production drives color by session state).
+    var rgbOverride: SIMD3<Double>? = nil
+
+    private static let count = 240
+    // Sorted by screen angle so ring dot i flies to a sphere point at a similar angle — the ring
+    // "inflates" into the sphere instead of scrambling through the middle.
+    private static let points: [SIMD3<Double>] = {
+        let golden = Double.pi * (3 - sqrt(5))
+        let lattice = (0..<count).map { i -> SIMD3<Double> in
+            let y = 1 - (Double(i) / Double(count - 1)) * 2
+            let r = (1 - y * y).squareRoot()
+            let a = golden * Double(i)
+            return SIMD3(cos(a) * r, y, sin(a) * r)
+        }
+        return lattice.sorted { atan2($0.y, $0.x) < atan2($1.y, $1.x) }
+    }()
+
+    static let offRGB = SIMD3(0.85, 0.20, 0.22)
+    static let onRGB = SIMD3(0.16, 0.92, 0.55)
 
     var body: some View {
-        let visual = OrbVisual(state: app.context.state)
-        let color = Color(red: visual.rgb.x, green: visual.rgb.y, blue: visual.rgb.z)
-        let reduce = app.settings.reduceMotion
-        let hovered = app.orbHovered
-        let ringD = min(app.settings.orbSize * 1.3, 30)   // ring outer diameter
-        let ringW = ringD * 0.16                          // ring thickness
+        Canvas { ctx, size in
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let p = progress * progress * (3 - 2 * progress)          // eased
+            let R = Double(diameter) / 2 * 0.62
+            let rgb = rgbOverride ?? (Self.offRGB + (Self.onRGB - Self.offRGB) * p)
+            let color = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
 
-        ZStack {
-            // Clickability lives on the AppKit container's circular layer backing (see
-            // FocusOrbWindowController.build) — no hit pixels needed in the SwiftUI tree.
+            // Outer halo — visible ember when off, BLAZING when on (scales with brightness).
+            let glowR = R * 2.3
+            let haloAlpha = min(1.0, (0.10 + 0.38 * p) * brightness)
+            ctx.fill(Path(ellipseIn: CGRect(x: c.x - glowR, y: c.y - glowR,
+                                            width: glowR * 2, height: glowR * 2)),
+                     with: .radialGradient(Gradient(colors: [color.opacity(haloAlpha), .clear]),
+                                           center: c, startRadius: R * 0.35, endRadius: glowR))
+            // Inner bloom — the sphere itself radiates once powered on.
+            if p > 0.01 {
+                let bloomR = R * 1.25
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - bloomR, y: c.y - bloomR,
+                                                width: bloomR * 2, height: bloomR * 2)),
+                         with: .radialGradient(
+                            Gradient(colors: [color.opacity(min(1.0, 0.55 * p * brightness)),
+                                              color.opacity(min(1.0, 0.18 * p * brightness)),
+                                              .clear]),
+                            center: c, startRadius: 0, endRadius: bloomR))
+            }
 
-            // Outer glow — blurred ring, comfortably inside the window so it is never clipped.
-            Circle()
-                .stroke(color, lineWidth: ringW * 2.2)
-                .frame(width: ringD, height: ringD)
-                .blur(radius: 8)
-                .opacity(visual.glow * (hovered ? 0.95 : 0.6))
+            let rotY = t * 0.55, rotX = t * 0.21
+            let cy = cos(rotY), sy = sin(rotY), cx = cos(rotX), sx = sin(rotX)
+            for (i, pt) in Self.points.enumerated() {
+                // Form A: a point on the flat ring (dots overlap into a solid circle line).
+                let a = 2 * Double.pi * Double(i) / Double(Self.count)
+                let ringX = cos(a) * R, ringY = sin(a) * R
 
-            // The ring itself.
-            Circle()
-                .stroke(color, lineWidth: ringW)
-                .frame(width: ringD, height: ringD)
-                .shadow(color: color.opacity(0.8), radius: 3)
+                // Form B: the same point on the rotating sphere.
+                let x1 = pt.x * cy + pt.z * sy
+                let z1 = -pt.x * sy + pt.z * cy
+                let y1 = pt.y * cx - z1 * sx
+                let z2 = pt.y * sx + z1 * cx
+                let depth = (z2 + 1) / 2
+                let sphX = x1 * R * 1.05, sphY = y1 * R * 1.05
 
-            // Hollow white core — barely-there at rest, fills in on hover.
-            Circle()
-                .fill(RadialGradient(colors: [.white.opacity(0.9), .white.opacity(0.25), .clear],
-                                     center: .center,
-                                     startRadius: 0, endRadius: (ringD - ringW) / 2))
-                .frame(width: ringD - ringW * 2, height: ringD - ringW * 2)
-                .opacity(hovered ? 0.55 : 0.10)
-                .scaleEffect(hovered ? 1.0 : 0.72)
+                let x = ringX + (sphX - ringX) * p
+                let y = ringY + (sphY - ringY) * p
+                let d = 0.55 + (depth - 0.55) * p
+                let sizeBoost = 1 + 0.15 * (brightness - 1) * p
+                let sphereDotR = (0.30 + 0.50 * depth) * R / 14
+                let dotR = (1.15 + (sphereDotR - 1.15) * p) * sizeBoost
+                let sphereAlpha = 0.35 + 0.75 * depth
+                let alphaBoost = 1 + 0.25 * (brightness - 1) * p
+                let bright = min(1.0, (0.95 + (sphereAlpha - 0.95) * p) * alphaBoost)
+                let whiten = d * 0.60 * p
+                let dotColor = Color(red: rgb.x + (1 - rgb.x) * whiten,
+                                     green: rgb.y + (1 - rgb.y) * whiten,
+                                     blue: rgb.z + (1 - rgb.z) * whiten)
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x + x - dotR, y: c.y + y - dotR,
+                                                width: dotR * 2, height: dotR * 2)),
+                         with: .color(dotColor.opacity(bright)))
+            }
         }
-        .scaleEffect((hovered ? 1.08 : 1.0) * (breathe && !reduce ? 1.045 : 1.0))
-        .frame(width: orbWindowSize, height: orbWindowSize)
-        .opacity(app.settings.orbOpacity)
-        .animation(.easeInOut(duration: 0.6), value: app.context.state)   // the click morph red↔green
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: hovered)
-        .onAppear {
-            guard !reduce else { return }
-            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) { breathe = true }
-        }
-        .allowsHitTesting(false)   // the AppKit container owns all mouse handling
     }
 }
 
-/// Maps a session state to the ring's color and glow. Idle is a calm deep-red "sleep"; away is a
-/// brighter red with a stronger glow so the two never read the same.
-struct OrbVisual {
+// MARK: Session state → orb style
+
+struct OrbMorphStyle {
+    let progress: Double        // 0 ring … 1 sphere
     let rgb: SIMD3<Double>
-    let glow: Double
+    let brightness: Double
+    let pulseRate: Double       // 0 = steady
 
     init(state: SessionState) {
+        let green = RingToParticlesOrb.onRGB
+        let red = RingToParticlesOrb.offRGB
+        let amber = SIMD3(1.00, 0.72, 0.23)
+        let alarmRed = SIMD3(1.00, 0.30, 0.30)
         switch state {
-        case .idle, .exited:          rgb = SIMD3(0.92, 0.22, 0.26); glow = 0.45
-        case .preparing, .countdown:  rgb = SIMD3(0.16, 0.92, 0.55); glow = 0.90
-        case .active:                 rgb = SIMD3(0.16, 0.92, 0.55); glow = 0.75
-        case .warning:                rgb = SIMD3(1.00, 0.72, 0.23); glow = 0.90
-        case .away, .recovering:      rgb = SIMD3(1.00, 0.30, 0.30); glow = 1.00
-        case .manualPaused:           rgb = SIMD3(0.16, 0.92, 0.55); glow = 0.30
-        case .completed:              rgb = SIMD3(0.16, 0.92, 0.55); glow = 0.95
+        case .idle, .exited:
+            progress = 0; rgb = red;      brightness = 1.3; pulseRate = 0
+        case .preparing, .countdown:
+            progress = 1; rgb = green;    brightness = 2.2; pulseRate = 1.6
+        case .active:
+            progress = 1; rgb = green;    brightness = 2.2; pulseRate = 0
+        case .warning:
+            progress = 1; rgb = amber;    brightness = 2.4; pulseRate = 3.0
+        case .away, .recovering:
+            progress = 1; rgb = alarmRed; brightness = 2.6; pulseRate = 3.6
+        case .manualPaused:
+            progress = 1; rgb = green;    brightness = 1.1; pulseRate = 0
+        case .completed:
+            progress = 1; rgb = green;    brightness = 2.6; pulseRate = 1.4
         }
+    }
+}
+
+// MARK: Morph animator — eases progress and color toward the current state's targets
+
+private struct MorphAnimator {
+    private var fromP: Double?
+    private var fromRGB: SIMD3<Double>?
+    private var start: Date?
+    private let duration: TimeInterval = 0.9
+
+    private func eased(_ now: Date) -> Double {
+        guard let start else { return 1 }
+        let t = min(1, max(0, now.timeIntervalSince(start) / duration))
+        return t * t * (3 - 2 * t)
+    }
+
+    func progress(toward target: Double, at now: Date) -> Double {
+        guard let fromP else { return target }
+        return fromP + (target - fromP) * eased(now)
+    }
+
+    func color(toward target: SIMD3<Double>, at now: Date) -> SIMD3<Double> {
+        guard let fromRGB else { return target }
+        return fromRGB + (target - fromRGB) * eased(now)
+    }
+
+    /// Start a new transition from whatever is currently displayed (smooth even mid-morph).
+    mutating func retarget(fromOld old: OrbMorphStyle, at now: Date) {
+        fromP = progress(toward: old.progress, at: now)
+        fromRGB = color(toward: old.rgb, at: now)
+        start = now
+    }
+}
+
+// MARK: Production orb view
+
+struct FocusOrbView: View {
+    @EnvironmentObject var app: AppState
+    @State private var morph = MorphAnimator()
+
+    var body: some View {
+        let style = OrbMorphStyle(state: app.context.state)
+        let reduce = app.settings.reduceMotion
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
+            let now = tl.date
+            let t = reduce ? 0 : now.timeIntervalSinceReferenceDate
+            let p = reduce ? style.progress : morph.progress(toward: style.progress, at: now)
+            let rgb = reduce ? style.rgb : morph.color(toward: style.rgb, at: now)
+            let pulse = (style.pulseRate > 0 && !reduce) ? 1 + 0.10 * sin(t * style.pulseRate) : 1
+            let hoverBoost = app.orbHovered ? 1.18 : 1.0
+            RingToParticlesOrb(t: t, progress: p, diameter: 48,
+                               brightness: style.brightness * pulse * hoverBoost,
+                               rgbOverride: rgb)
+        }
+        .frame(width: orbWindowSize, height: orbWindowSize)
+        .scaleEffect(app.orbHovered ? 1.08 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: app.orbHovered)
+        .opacity(app.settings.orbOpacity)
+        .onChange(of: app.context.state) { oldState, _ in
+            morph.retarget(fromOld: OrbMorphStyle(state: oldState), at: Date())
+        }
+        .allowsHitTesting(false)   // the AppKit container owns all mouse handling
     }
 }
