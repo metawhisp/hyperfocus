@@ -24,7 +24,8 @@ enum DebugSnapshots {
         snap(StartSessionView(onStart: { _ in }, onCancel: {}, onSuggest: { nil }).environmentObject(app),
              "start_card", dir, CGSize(width: 430, height: 420))
 
-        snap(CountdownPreview(), "countdown", dir, CGSize(width: 620, height: 360))
+        // Realistic laptop-screen aspect — the intro phrase needs the width to scale-to-fit.
+        snap(CountdownPreview(), "countdown", dir, CGSize(width: 1470, height: 828))
 
         // Aura frame uniformity check (A1): even glow along the whole perimeter, corners included.
         let auraModel = AuraModel()
@@ -111,15 +112,16 @@ enum DebugSnapshots {
     }
 }
 
-/// Static mid-countdown frame for the snapshot (the live view animates through its sequence).
+/// Static intro frame for the snapshot (the live view animates through its sequence) —
+/// mirrors CountdownOverlayView's shipped styling (matrix font on every frame).
 private struct CountdownPreview: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.82)
-            Text("FOCUS")
-                .font(SegFont.seg14(116))
+            Text(Constants.Copy.countdownSequence[0])
+                .font(FD.matrix(116))
                 .foregroundStyle(.white)
-                .shadow(color: Palette.green.opacity(0.9), radius: 34)
+                .shadow(color: FD.lime.opacity(0.9), radius: 34)
                 .minimumScaleFactor(0.4).lineLimit(1).padding(.horizontal, 24)
         }
     }

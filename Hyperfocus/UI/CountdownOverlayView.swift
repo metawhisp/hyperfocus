@@ -20,8 +20,9 @@ struct CountdownOverlayView: View {
                 .ignoresSafeArea()
 
             Text(sequence[index])
-                // Intro line stays readable; the 3·2·1·FOCUS frames use the dot-matrix display font.
-                .font(index == 0 ? .system(size: 46, weight: .bold, design: .rounded) : FD.matrix(116))
+                // Every frame — intro line included — gets the dot-matrix display treatment
+                // (countdown gallery variant A, user-picked); the long phrase auto-shrinks to fit.
+                .font(FD.matrix(116))
                 .foregroundStyle(.white)
                 .shadow(color: FD.lime.opacity(cinematic ? 0.9 : 0.5),
                         radius: cinematic ? 34 : 18)
