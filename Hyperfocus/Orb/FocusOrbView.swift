@@ -1,11 +1,11 @@
 // FocusOrbView.swift — living particle-sphere orb (canon §13 #25): deep-red calm sleep when idle,
-// morphs green when engaged. Rendered as a slowly rotating Fibonacci sphere of particles with
-// depth-scaled size/brightness and a soft radial glow (SwiftUI Canvas + TimelineView).
+// morphs green when engaged. A dense Fibonacci lattice of fine particles over a soft gradient core
+// (SwiftUI Canvas + TimelineView) — reads as a glowing dotted sphere, not scattered spikes.
 
 import SwiftUI
 
-/// Fixed window footprint for the orb; the particle sphere is centred inside, leaving glow room.
-let orbWindowSize: CGFloat = 60
+/// Window footprint for the orb: sized so the glow and the hover scale NEVER clip at the edges.
+let orbWindowSize: CGFloat = 76
 
 struct FocusOrbView: View {
     @EnvironmentObject var app: AppState
@@ -20,7 +20,7 @@ struct FocusOrbView: View {
             }
         }
         .frame(width: orbWindowSize, height: orbWindowSize)
-        .scaleEffect(app.orbHovered ? 1.14 : 1.0)                        // hover: "I'm alive"
+        .scaleEffect(app.orbHovered ? 1.08 : 1.0)                        // hover: "I'm alive"
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: app.orbHovered)
         .opacity(app.settings.orbOpacity)
         .onChange(of: app.context.state) { oldState, _ in
@@ -36,27 +36,38 @@ struct FocusOrbView: View {
                       visual: OrbVisual, reduce: Bool) {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let t = reduce ? 0 : date.timeIntervalSinceReferenceDate
-        let speed = visual.speed * (app.orbHovered ? 1.9 : 1.0)
+        let speed = visual.speed * (app.orbHovered ? 1.7 : 1.0)
         let rotY = t * speed
-        let rotX = t * speed * 0.37
-        let pulse = (visual.pulses && !reduce) ? 1.0 + 0.05 * sin(t * visual.pulseRate) : 1.0
+        let rotX = t * speed * 0.31
+        let pulse = (visual.pulses && !reduce) ? 1.0 + 0.04 * sin(t * visual.pulseRate) : 1.0
         // Reduce-motion pauses the timeline, so an animated morph would freeze mid-transition and
         // show a stale color — jump straight to the target instead.
         let rgb = reduce ? visual.rgb : transition.current(toward: visual.rgb, at: date)
         let color = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
-        let radius = min(app.settings.orbSize * 0.78, orbWindowSize / 2 - 7) * pulse
+        // Radius budget: glow (×1.9) times hover scale (×1.08) must stay inside the window.
+        let radius = min(app.settings.orbSize * 0.75, orbWindowSize / 2 / (1.9 * 1.08) - 0.5) * pulse
 
-        // Soft peripheral glow
-        let glowR = radius * 2.1
+        // 1. Soft outer glow — fits fully inside the window, never clipped.
+        let glowR = radius * 1.9
         ctx.fill(
             Path(ellipseIn: CGRect(x: center.x - glowR, y: center.y - glowR,
                                    width: glowR * 2, height: glowR * 2)),
             with: .radialGradient(
-                Gradient(colors: [color.opacity(visual.glow * (app.orbHovered ? 0.55 : 0.4)), .clear]),
-                center: center, startRadius: radius * 0.3, endRadius: glowR)
+                Gradient(colors: [color.opacity(visual.glow * (app.orbHovered ? 0.5 : 0.38)), .clear]),
+                center: center, startRadius: radius * 0.55, endRadius: glowR)
         )
 
-        // Particle sphere: rotate around Y then X, depth drives dot size, brightness, and whitening.
+        // 2. Gradient core — gives the sphere a solid luminous body under the particles.
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius,
+                                   width: radius * 2, height: radius * 2)),
+            with: .radialGradient(
+                Gradient(colors: [color.opacity(0.34), color.opacity(0.10), color.opacity(0.02)]),
+                center: CGPoint(x: center.x - radius * 0.25, y: center.y - radius * 0.25),
+                startRadius: 0, endRadius: radius * 1.15)
+        )
+
+        // 3. Dense fine particles: rotate around Y then X; depth drives size, brightness, whitening.
         let cy = cos(rotY), sy = sin(rotY), cx = cos(rotX), sx = sin(rotX)
         for p in Self.spherePoints {
             let x1 = p.x * cy + p.z * sy
@@ -66,19 +77,19 @@ struct FocusOrbView: View {
             let depth = (z2 + 1) / 2                       // 0 = back … 1 = front
             let px = center.x + x1 * radius
             let py = center.y + y1 * radius
-            let dotR = (0.35 + 0.85 * depth) * radius / 13
-            let dotColor = Color(red: rgb.x + (1 - rgb.x) * depth * 0.35,
-                                 green: rgb.y + (1 - rgb.y) * depth * 0.35,
-                                 blue: rgb.z + (1 - rgb.z) * depth * 0.35)
+            let dotR = (0.30 + 0.50 * depth) * radius / 17
+            let dotColor = Color(red: rgb.x + (1 - rgb.x) * depth * 0.45,
+                                 green: rgb.y + (1 - rgb.y) * depth * 0.45,
+                                 blue: rgb.z + (1 - rgb.z) * depth * 0.45)
             ctx.fill(Path(ellipseIn: CGRect(x: px - dotR, y: py - dotR,
                                             width: dotR * 2, height: dotR * 2)),
-                     with: .color(dotColor.opacity(0.30 + 0.70 * depth)))
+                     with: .color(dotColor.opacity(0.16 + 0.74 * depth)))
         }
     }
 
-    /// Evenly distributed points on a unit sphere (Fibonacci lattice).
+    /// Densely, evenly distributed points on a unit sphere (Fibonacci lattice).
     private static let spherePoints: [SIMD3<Double>] = {
-        let n = 130
+        let n = 420
         let golden = Double.pi * (3 - sqrt(5))
         return (0..<n).map { i in
             let y = 1 - (Double(i) / Double(n - 1)) * 2
