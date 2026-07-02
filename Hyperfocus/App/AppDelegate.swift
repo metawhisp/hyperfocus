@@ -19,6 +19,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SoundPreviewWindow.show()     // audition focus-sound candidates; user picks before prod
             return
         }
+        if ProcessInfo.processInfo.environment["HF_COUNTDOWN_PREVIEW"] == "1" {
+            CountdownPreviewWindow.show() // intro-frame variants; user picks before prod
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
