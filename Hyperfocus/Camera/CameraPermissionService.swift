@@ -16,6 +16,11 @@ final class CameraPermissionService {
         AVCaptureDevice.authorizationStatus(for: .video) == .authorized
     }
 
+    /// True while the system prompt can still be shown (user hasn't decided yet).
+    var canPrompt: Bool {
+        AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined
+    }
+
     /// Requests camera access, delivering the result on the main thread.
     func requestAccess(completion: @escaping (Bool) -> Void) {
         AVCaptureDevice.requestAccess(for: .video) { granted in

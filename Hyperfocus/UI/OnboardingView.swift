@@ -126,7 +126,7 @@ struct OnboardingView: View {
         permissionStep(
             icon: "person.fill.viewfinder",
             title: "It notices when you drift",
-            body: "Leave your Mac mid-session and the timer pauses — a gentle sound calls you back. Camera frames are analyzed on your Mac only. Nothing is recorded or uploaded, ever.",
+            body: "Leave your Mac mid-session and the timer pauses — a gentle sound calls you back. Presence is the core of Hyperfocus: the camera is required for the full experience (without it, sessions run as plain timers). Frames are analyzed on your Mac only — nothing is recorded or uploaded, ever.",
             granted: cameraGranted,
             enableTitle: "Enable camera",
             enable: { requestCamera { granted in cameraGranted = granted; step = 3 } },
@@ -227,6 +227,44 @@ struct OnboardingView: View {
             Text(title).font(.system(size: 13, weight: .semibold))
             Text("— \(detail)").font(.system(size: 13)).foregroundStyle(.secondary)
         }
+    }
+}
+
+/// Launch-time reminder shown when camera permission is still missing after onboarding (canon #27).
+struct PermissionNudgeView: View {
+    let canPrompt: Bool
+    var onEnable: () -> Void
+    var onOpenSettings: () -> Void
+    var onLater: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "person.fill.viewfinder")
+                .font(.system(size: 30))
+                .foregroundStyle(Palette.green)
+            Text("Camera makes Hyperfocus work")
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+            Text("Presence detection is the core of Hyperfocus — it pauses your session when you leave and calls you back. Without camera access, sessions run as plain timers. Frames never leave your Mac.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+            HStack(spacing: 10) {
+                Button("Later", action: onLater).buttonStyle(.bordered)
+                if canPrompt {
+                    Button("Enable camera", action: onEnable)
+                        .buttonStyle(.borderedProminent).tint(Palette.green)
+                        .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Open System Settings…", action: onOpenSettings)
+                        .buttonStyle(.borderedProminent).tint(Palette.green)
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+        }
+        .padding(24)
+        .frame(width: 430, height: 280)
+        .background(Color(red: 0.055, green: 0.065, blue: 0.09))
+        .preferredColorScheme(.dark)
     }
 }
 

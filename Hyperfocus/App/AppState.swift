@@ -29,7 +29,12 @@ final class AppState: ObservableObject {
         guard !didBootstrap else { return }
         didBootstrap = true
         if settings.showOrbOnLaunch { coordinator.showOrb() }
-        if !settings.onboardingCompleted { coordinator.showOnboarding() }
+        if !settings.onboardingCompleted {
+            coordinator.showOnboarding()
+        } else {
+            // Permissions are collected up front — never right before a session (canon #27).
+            coordinator.showPermissionNudgeIfNeeded()
+        }
     }
 
     /// Dispatch an event through the reducer, then hand the effects to the coordinator.

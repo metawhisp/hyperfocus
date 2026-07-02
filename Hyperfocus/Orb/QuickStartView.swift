@@ -23,7 +23,6 @@ struct QuickStartChipView: View {
             .foregroundStyle(hot ? .black : .white)
             .padding(.horizontal, 14).padding(.vertical, 8)
             .background(hot ? AnyShapeStyle(Palette.green) : AnyShapeStyle(.ultraThinMaterial), in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(hot ? 0 : 0.25), lineWidth: 0.75))
             .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
             .scaleEffect(hot ? 1.12 : (appeared ? 1.0 : 0.7))
             .opacity(appeared ? 1 : 0)

@@ -124,9 +124,9 @@ struct OrbMorphStyle {
         case .idle, .exited:
             progress = 0; rgb = red;      brightness = 3.0; pulseRate = 0   // neon: always visible
         case .preparing, .countdown:
-            progress = 1; rgb = green;    brightness = 2.2; pulseRate = 1.6
+            progress = 1; rgb = green;    brightness = 2.7; pulseRate = 1.6
         case .active:
-            progress = 1; rgb = green;    brightness = 2.2; pulseRate = 0
+            progress = 1; rgb = green;    brightness = 2.7; pulseRate = 0
         case .warning:
             progress = 1; rgb = amber;    brightness = 2.4; pulseRate = 3.0
         case .away, .recovering:

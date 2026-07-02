@@ -65,14 +65,55 @@ final class SessionCoordinator {
         orb.onSecondaryClick = { [weak self] event in self?.showOrbQuickActions(event) }
     }
 
-    /// Click toggle (canon §13 #25): red sleep → green prepare; pressed again → back to red sleep
-    /// (cancels the card or exits the running session).
+    /// Click toggle (canon §13 #25/#27): red sleep → green prepare. During a RUNNING session a
+    /// click must never exit directly — it asks for confirmation (aura flashes red).
     private func handleOrbClick() {
         switch appState?.context.state {
         case .idle:      appState?.send(.orbClicked)
         case .preparing: appState?.send(.cancelPreparing)
-        case .completed, nil: break                       // completion card is open — decide there
-        default:         appState?.send(.userExited)
+        case .countdown: appState?.send(.userExited)      // T5 abort — cheap, nothing saved
+        case .active, .warning, .manualPaused:
+            requestExitConfirmation()
+        case .away, .recovering, .completed, .exited, nil:
+            break                                          // their own cards are already on screen
+        }
+    }
+
+    // MARK: Exit confirmation (canon §13 #27)
+
+    private var exitConfirmPanel: NSPanel?
+
+    private func requestExitConfirmation() {
+        guard let app = appState, app.context.state.isRunning, exitConfirmPanel == nil else { return }
+        aura.setState(.red)   // everything turns red while the question is up
+        let view = ExitConfirmView(
+            onStay: { [weak self] in self?.dismissExitConfirm(restoreAura: true) },
+            onExit: { [weak self] in
+                self?.dismissExitConfirm(restoreAura: false)
+                self?.appState?.send(.userExited)
+            })
+        let panel = makeCardPanel(view, app: app, level: .screenSaver)
+        center(panel)
+        exitConfirmPanel = panel
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    private func dismissExitConfirm(restoreAura: Bool) {
+        exitConfirmPanel?.orderOut(nil)
+        exitConfirmPanel = nil
+        if restoreAura, let state = appState?.context.state {
+            aura.setState(Self.auraState(for: state))
+        }
+    }
+
+    private static func auraState(for state: SessionState) -> AuraState {
+        switch state {
+        case .active: return .green
+        case .warning: return .yellow
+        case .away, .recovering: return .red
+        case .manualPaused: return .dimmed
+        default: return .hidden
         }
     }
 
@@ -98,6 +139,28 @@ final class SessionCoordinator {
         let view = HistoryView(sessions: store.all())
         let w = makeStandardWindow(title: "Session History", view: view)
         historyWindow = w
+        present(w)
+    }
+
+    /// Launch-time reminder when camera permission is still missing after onboarding (canon #27):
+    /// the product's core feature needs it, so ask up front — never right before a session.
+    private var permissionNudgeWindow: NSWindow?
+
+    func showPermissionNudgeIfNeeded() {
+        guard settings.onboardingCompleted, settings.useCameraForPresence,
+              !permission.isAuthorized, permissionNudgeWindow == nil else { return }
+        let close: () -> Void = { [weak self] in
+            self?.permissionNudgeWindow?.orderOut(nil)
+            self?.permissionNudgeWindow = nil
+        }
+        let view = PermissionNudgeView(
+            canPrompt: permission.canPrompt,
+            onEnable: { [weak self] in self?.permission.requestAccess { _ in close() } },
+            onOpenSettings: { Self.openSystemCameraPrefs(); close() },
+            onLater: close)
+        let w = makeStandardWindow(title: "Hyperfocus needs your camera", view: view,
+                                   size: CGSize(width: 430, height: 280))
+        permissionNudgeWindow = w
         present(w)
     }
 
@@ -137,14 +200,14 @@ final class SessionCoordinator {
         case .setAura(let state):       aura.setState(state)
         case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis()
         case .pauseTimer, .resumeTimer: break   // SessionTimer is a continuous heartbeat; the reducer accounts per state
-        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel)
+        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false)
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil
         case .startAlarm:               if settings.alarmEnabled { alarm.start(volume: alarmVolume()) }
         case .stopAlarm:                alarm.stop()
         case .playVoice(let line):      if settings.voicePromptsEnabled { voice.speak(line, persona: settings.voicePersona) }
-        case .showAwayCard:             showAwayCard()
+        case .showAwayCard:             dismissExitConfirm(restoreAura: false); showAwayCard()
         case .hideAwayCard:             dismiss(&awayPanel)
         case .showRecoveryCountdown, .hideRecoveryCountdown: break   // AwayModeView reacts to state == .recovering
         case .showCompletion:           showCompletion()
@@ -169,14 +232,10 @@ final class SessionCoordinator {
             }
             presence = service
         }
-        // Real camera: request permission first so the capture session can actually start (and the
-        // camera indicator turns on). If denied, the service emits .notAuthorized → reducer degrades
-        // to no-camera semantics. Simulated camera needs no permission.
-        if usingSimulated {
-            beginPresence(warmup: warmup)
-        } else {
-            permission.requestAccess { [weak self] _ in self?.beginPresence(warmup: warmup) }
-        }
+        // NEVER prompt for permission at session start (canon §13 #27) — permission is collected in
+        // onboarding or by the launch nudge. If unauthorized here, the service emits .notAuthorized
+        // and the reducer degrades to no-camera semantics silently.
+        beginPresence(warmup: warmup)
     }
 
     private func beginPresence(warmup: Bool) {
@@ -330,7 +389,7 @@ final class SessionCoordinator {
 
     private func showHUD() {
         guard hudPanel == nil, let app = appState else { return }
-        let view = ActiveHUDView(onExit: { [weak self] in self?.appState?.send(.userExited) })
+        let view = ActiveHUDView(onExit: { [weak self] in self?.requestExitConfirmation() })
         let panel = makeCardPanel(view, app: app, level: .statusBar)
         placeNearOrb(panel)
         hudPanel = panel
@@ -389,7 +448,9 @@ final class SessionCoordinator {
                                  styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        // No system window shadow: it draws a rectangular shadow/hairline box around the
+        // transparent window edges ("странная обводка"); cards carry their own SwiftUI shadows.
+        panel.hasShadow = false
         panel.level = level
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
