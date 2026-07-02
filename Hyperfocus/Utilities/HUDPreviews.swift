@@ -13,14 +13,14 @@ import AppKit
 private let BAR_W: CGFloat = 400
 private let BAR_H: CGFloat = 42
 
-/// Burn palette — same math as production FDProgress.
+/// Burn palette — same math as production FDProgress (orb green #29EB8C, one green everywhere).
 private func burnColor(_ f: CGFloat) -> Color {
     func mix(_ a: (Double, Double, Double), _ b: (Double, Double, Double), _ t: Double) -> Color {
         Color(red: a.0 + (b.0 - a.0) * t, green: a.1 + (b.1 - a.1) * t, blue: a.2 + (b.2 - a.2) * t)
     }
-    let lime = (0.72, 0.95, 0.21), amber = (1.0, 0.62, 0.18), red = (1.0, 0.30, 0.28)
-    if f < 0.70 { return mix(lime, lime, 0) }
-    if f < 0.85 { return mix(lime, amber, Double((f - 0.70) / 0.15)) }
+    let green = (0.16, 0.92, 0.55), amber = (1.0, 0.62, 0.18), red = (1.0, 0.30, 0.28)
+    if f < 0.70 { return mix(green, green, 0) }
+    if f < 0.85 { return mix(green, amber, Double((f - 0.70) / 0.15)) }
     return mix(amber, red, Double(min(1, (f - 0.85) / 0.15)))
 }
 

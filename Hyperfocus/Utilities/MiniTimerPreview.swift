@@ -17,7 +17,7 @@ struct MiniTimerPill: View {
             .padding(.horizontal, 12).padding(.vertical, 6)
             .background(Capsule().fill(Color.black.opacity(0.55)))
             .overlay(Capsule().strokeBorder(.white.opacity(0.10), lineWidth: 1))
-            .shadow(color: FD.lime.opacity(0.35), radius: 10)
+            .shadow(color: Palette.green.opacity(0.4), radius: 10)   // same green as the orb
     }
 }
 
@@ -37,9 +37,11 @@ private struct DemoHUDCard: View {
                 }
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.black.opacity(0.35))
-                    Capsule().fill(FD.limeGradient)
+                    // Session progress wears the ORB's green, not the UI lime (user: one green).
+                    Capsule().fill(LinearGradient(colors: [Palette.green, Palette.green.opacity(0.75)],
+                                                  startPoint: .leading, endPoint: .trailing))
                         .frame(width: max(14, fraction * 312))
-                        .shadow(color: FD.lime.opacity(0.8), radius: 10)
+                        .shadow(color: Palette.green.opacity(0.8), radius: 10)
                 }
                 .frame(width: 312, height: 26)
             }

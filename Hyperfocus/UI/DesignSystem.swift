@@ -308,9 +308,11 @@ struct FDProgress: View {
     }
 
     private var barColor: Color {
-        let lime = (0.72, 0.95, 0.21), amber = (1.0, 0.62, 0.18), red = (1.0, 0.30, 0.28)
-        if fraction < 0.70 { return mix(lime, lime, 0) }
-        if fraction < 0.85 { return mix(lime, amber, Double((fraction - 0.70) / 0.15)) }
+        // Session progress wears the ORB's green (#29EB8C, = Palette.green) — one green
+        // across orb/aura/progress (user feedback), burning to amber @70% and red @85%.
+        let green = (0.16, 0.92, 0.55), amber = (1.0, 0.62, 0.18), red = (1.0, 0.30, 0.28)
+        if fraction < 0.70 { return mix(green, green, 0) }
+        if fraction < 0.85 { return mix(green, amber, Double((fraction - 0.70) / 0.15)) }
         return mix(amber, red, Double(min(1, (fraction - 0.85) / 0.15)))
     }
 
