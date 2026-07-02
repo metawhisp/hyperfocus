@@ -7,8 +7,9 @@
 
 **FLIGHT DECK shipped end-to-end + generated focus sound (canon #25–#29).** Focus sound solved:
 our own Ambient Pad synth (PadSynth.swift) is the production default, 12 s perceptual swell on all
-modes. Countdown intro shipped in matrix style (gallery variant A, canon #30). Open: user walkthrough
-(real-camera attention test via HFCAM logs).
+modes. Countdown intro shipped in matrix style (gallery variant A, canon #30). All generated soundscapes
+are selectable FocusSoundModes; LOCK IN v2 (quiet dark bed, session-clock sections) — canon #31.
+Open: user walkthrough (real-camera attention test via HFCAM logs).
 
 ## What exists
 

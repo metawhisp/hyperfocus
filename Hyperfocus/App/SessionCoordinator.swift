@@ -199,10 +199,10 @@ final class SessionCoordinator {
         case .showCountdown:            showCountdown()
         case .dismissCountdown:         dismiss(&countdownWindow)
         case .setAura(let state):       aura.setState(state)
-        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); startFocusSound()
+        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
         case .pauseTimer:               focusSound.stop()      // away: the alarm owns the soundscape
-        case .resumeTimer:              startFocusSound()
-        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop()
+        case .resumeTimer:              startFocusSound()      // soundscape continues on the session clock
+        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession()
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil

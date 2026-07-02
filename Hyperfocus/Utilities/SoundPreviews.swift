@@ -1,25 +1,20 @@
-// SoundPreviews.swift — DEBUG-only live focus-sound gallery (HF_SOUND_PREVIEW=1), round 2.
-// Finalists per user: tonal DEEP HUM / WARM DRONE families. All variants: slow phase-continuous
-// frequency drift (nothing static), RMS-matched levels (raw RMS target ≈ 0.18 before master gain),
-// live dBFS meter so loudness equality is visible. Preview-before-prod, audio edition.
+// SoundPreviews.swift — DEBUG-only live focus-sound gallery (HF_SOUND_PREVIEW=1), round 3.
+// All candidates are production FocusSoundModes now — the gallery auditions the exact renderers
+// the app ships (PadSynth.swift + FocusScapes.swift), with a live dBFS meter so loudness
+// equality stays visible. Preview-before-prod, audio edition.
 
 #if DEBUG
 import SwiftUI
 import AVFoundation
 
-// MARK: Candidates — tonal only, each with slow frequency movement
-
-struct SoundPartial {
-    let baseHz: Double
-    let amp: Float
-    let glideDepth: Double   // relative, e.g. 0.03 = ±3%
-    let glideRate: Double    // Hz of the drift LFO (0.01–0.05 → 20–100 s cycles)
-    let glidePhase: Double
-}
+// MARK: Candidates — gallery labels over the shipped generated modes
 
 enum SoundCandidate: String, CaseIterable, Identifiable {
     case pad, humTide, humSweep, droneChorus, droneFifth, warmHybrid, lockIn
     var id: String { rawValue }
+
+    /// The production mode this row auditions (same raw values by construction).
+    var mode: FocusSoundMode { FocusSoundMode(rawValue: rawValue)! }
 
     var title: String {
         switch self {
@@ -41,133 +36,12 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
         case .droneChorus: return "аккорд A2, каждый голос расстраивается сам по себе"
         case .droneFifth: return "тоника + квинта, квинта медленно гуляет ±30 центов"
         case .warmHybrid: return "55/110/165 Гц — между хамом и дроном"
-        case .lockIn: return "по спектру реального трека: дрон A/E + гамма-пара 220L/260R, 3 секции; цикл 90 сек"
-        }
-    }
-
-    var partials: [SoundPartial] {
-        switch self {
-        case .lockIn, .pad: return []   // custom layered renders, not the partial engine
-        case .humTide: return [
-            .init(baseHz: 50, amp: 1.0, glideDepth: 0.02, glideRate: 0.020, glidePhase: 0.0),
-            .init(baseHz: 100, amp: 0.6, glideDepth: 0.02, glideRate: 0.020, glidePhase: 0.0),
-            .init(baseHz: 150.7, amp: 0.25, glideDepth: 0.02, glideRate: 0.020, glidePhase: 0.0),
-        ]
-        case .humSweep: return [
-            .init(baseHz: 53, amp: 1.0, glideDepth: 0.13, glideRate: 0.012, glidePhase: 0.0),
-            .init(baseHz: 106, amp: 0.5, glideDepth: 0.13, glideRate: 0.012, glidePhase: 0.0),
-        ]
-        case .droneChorus: return [
-            .init(baseHz: 110, amp: 0.5, glideDepth: 0.012, glideRate: 0.031, glidePhase: 0.0),
-            .init(baseHz: 164.8, amp: 0.35, glideDepth: 0.010, glideRate: 0.023, glidePhase: 2.1),
-            .init(baseHz: 220.4, amp: 0.30, glideDepth: 0.008, glideRate: 0.017, glidePhase: 4.2),
-        ]
-        case .droneFifth: return [
-            .init(baseHz: 110, amp: 0.6, glideDepth: 0.006, glideRate: 0.020, glidePhase: 0.0),
-            .init(baseHz: 165, amp: 0.45, glideDepth: 0.018, glideRate: 0.013, glidePhase: 1.3),
-        ]
-        case .warmHybrid: return [
-            .init(baseHz: 55, amp: 0.8, glideDepth: 0.025, glideRate: 0.016, glidePhase: 0.0),
-            .init(baseHz: 110.3, amp: 0.5, glideDepth: 0.020, glideRate: 0.024, glidePhase: 1.7),
-            .init(baseHz: 165.8, amp: 0.3, glideDepth: 0.015, glideRate: 0.019, glidePhase: 3.4),
-        ]
-        }
-    }
-
-    /// Master scale so each variant lands at raw RMS ≈ 0.18 before the volume gain.
-    /// RMS of incoherent sines = sqrt(0.5·Σamp²); tremolo (~0.9 avg) folded in where used.
-    /// Sub-heavy variants get a small perceptual boost (ear is less sensitive below ~80 Hz).
-    var masterScale: Float {
-        switch self {
-        case .humTide: return 0.214            // Σamp²=1.4225 → RMS .843 → ×.214 ≈ .18
-        case .humSweep: return 0.262           // RMS .79 → ×.228, ×1.15 sub boost ≈ .262
-        case .droneChorus: return 0.416        // RMS .481, tremolo .9 → ×.416
-        case .droneFifth: return 0.377         // RMS .53, tremolo .9 → ×.377
-        case .warmHybrid: return 0.283         // RMS .70 → ×.257, ×1.10 sub boost ≈ .283
-        case .lockIn: return 1.0               // per-layer amps already RMS-targeted ≈ .18 combined
-        case .pad: return 1.0                  // PadRenderer applies PadBank.masterScale itself
-        }
-    }
-
-    var tremolo: Bool {
-        switch self {
-        case .droneChorus, .droneFifth: return true
-        default: return false
+        case .lockIn: return "дрон A/E + гамма-пара 220L/260R; подложка тише и темнее (v2); цикл 90 сек"
         }
     }
 }
 
-/// LOCK IN — reverse-engineered from FFT analysis of the real "ADHD Lock In" track (this session):
-/// an A/E ambient drone with a musical 40 Hz gamma pair (A3 220 left / ~C4 260 right), interchannel
-/// micro-detunes (1–3 Hz shimmer), a dark 60–240 Hz noise bed, and chord sections that change over
-/// time (measured at 1/45/95 min; the closer quiets by ~4 dB). We synthesize the recipe, not the file.
-enum LockInPhase {
-    case stabilize, s1, s2, s3
-
-    static func at(_ u: Double) -> LockInPhase {
-        switch u {
-        case ..<0.08: return .stabilize
-        case ..<0.40: return .s1
-        case ..<0.75: return .s2
-        default: return .s3
-        }
-    }
-
-    var name: String {
-        switch self {
-        case .stabilize: return "ВХОД — только подложка"
-        case .s1: return "СЕКЦИЯ 1 — якорь E2/A2, шиммер 1–3 Гц"
-        case .s2: return "СЕКЦИЯ 2 — гамма-пара 220L/260R"
-        case .s3: return "СЕКЦИЯ 3 — удержание, на 4 дБ тише"
-        }
-    }
-
-    var index: Int {   // -1 = bed only
-        switch self {
-        case .stabilize: return -1
-        case .s1: return 0
-        case .s2: return 1
-        case .s3: return 2
-        }
-    }
-}
-
-/// Tone bank with per-section target amps (L/R separately), from the measured peak sets.
-struct LockInTone {
-    let freq: Double
-    let ampL: [Float]   // [s1, s2, s3]
-    let ampR: [Float]
-}
-
-enum LockInBank {
-    static let toneScale: Float = 0.28
-    static let bedGain: [Float] = [0.9, 0.9, 0.72]      // s3 ≈ −4 dB in the source
-
-    static let tones: [LockInTone] = [
-        LockInTone(freq: 82.4, ampL: [0.50, 0.50, 0.00], ampR: [0.50, 0.50, 0.00]),   // E2 anchor
-        LockInTone(freq: 110.0, ampL: [0.35, 0.00, 0.00], ampR: [0.00, 0.00, 0.00]),  // A2, left voice
-        LockInTone(freq: 185.7, ampL: [0.00, 0.00, 0.00], ampR: [0.30, 0.00, 0.00]),  // right voice
-        LockInTone(freq: 220.0, ampL: [0.45, 0.40, 0.00], ampR: [0.00, 0.00, 0.00]),  // A3 left
-        LockInTone(freq: 219.0, ampL: [0.00, 0.00, 0.00], ampR: [0.35, 0.00, 0.00]),  // 1 Hz beat vs 220L
-        LockInTone(freq: 260.0, ampL: [0.00, 0.00, 0.00], ampR: [0.00, 0.40, 0.35]),  // gamma pair right
-        LockInTone(freq: 138.3, ampL: [0.00, 0.40, 0.00], ampR: [0.00, 0.40, 0.00]),  // C#3, section 2
-        LockInTone(freq: 207.0, ampL: [0.00, 0.35, 0.00], ampR: [0.00, 0.00, 0.00]),
-        LockInTone(freq: 207.7, ampL: [0.00, 0.00, 0.00], ampR: [0.00, 0.35, 0.00]),  // 0.7 Hz detune
-        LockInTone(freq: 293.7, ampL: [0.25, 0.00, 0.00], ampR: [0.25, 0.00, 0.00]),  // D4
-        LockInTone(freq: 438.5, ampL: [0.12, 0.00, 0.10], ampR: [0.12, 0.00, 0.10]),  // A4 shimmer
-        LockInTone(freq: 441.5, ampL: [0.12, 0.00, 0.10], ampR: [0.12, 0.00, 0.10]),  // +3 Hz beat
-        LockInTone(freq: 415.3, ampL: [0.00, 0.12, 0.00], ampR: [0.00, 0.00, 0.00]),  // G#4 s2 (L)
-        LockInTone(freq: 417.3, ampL: [0.00, 0.00, 0.00], ampR: [0.00, 0.12, 0.00]),  // 2 Hz beat (R)
-        LockInTone(freq: 192.3, ampL: [0.00, 0.00, 0.45], ampR: [0.00, 0.00, 0.45]),  // s3 set
-        LockInTone(freq: 144.9, ampL: [0.00, 0.00, 0.35], ampR: [0.00, 0.00, 0.00]),
-        LockInTone(freq: 284.8, ampL: [0.00, 0.00, 0.25], ampR: [0.00, 0.00, 0.25]),
-    ]
-}
-
-// PAD engine lives in production code now (Audio/PadSynth.swift): PadBank + FreeverbLite +
-// PadRenderer are shared — the gallery auditions the exact same render the app ships.
-
-// MARK: Engine — phase-continuous glides, RMS meter, whisper ceiling
+// MARK: Engine — thin shell over the production renderers + RMS meter
 
 final class SoundLabEngine: ObservableObject {
     @Published var playing: SoundCandidate?
@@ -180,31 +54,30 @@ final class SoundLabEngine: ObservableObject {
     private var gain: Float = 0
     var targetGain: Float = 0.10
 
-    private var phases = [Double](repeating: 0, count: 8)
     private var sampleIndex: Double = 0
     private var rmsAccum: Double = 0
     private var rmsCount: Int = 0
-    // lock-in state
-    private var brown: Float = 0
-    private var bedLP: Float = 0
-    private var bedLP2: Float = 0
-    private var mixBed: Float = 0
-    private var tonePhases = [Double](repeating: 0, count: LockInBank.tones.count)
-    private var toneGL = [Float](repeating: 0, count: LockInBank.tones.count)   // smoothed L gains
-    private var toneGR = [Float](repeating: 0, count: LockInBank.tones.count)
-    // pad: shared production renderer (Audio/PadSynth.swift) — gallery == shipped sound
+    // Shared production renderers (PadSynth.swift / FocusScapes.swift) — gallery == shipped sound.
     private var pad: PadRenderer?
+    private var drone: DroneRenderer?
+    private var lockIn: LockInRenderer?
 
     func play(_ c: SoundCandidate, volume: Float) {
         targetGain = volume
         candidate = c
         gain = 0
-        phases = [Double](repeating: 0, count: 8)
         sampleIndex = 0; rmsAccum = 0; rmsCount = 0
-        if c == .pad && pad == nil {
-            // Allocate off the render thread.
-            let sr = engine.outputNode.inputFormat(forBus: 0).sampleRate
-            pad = PadRenderer(sampleRate: sr > 0 ? sr : 44_100)
+        // Allocate renderers off the render thread; the gallery loops LOCK IN's 90 s audition cycle.
+        let rate = engine.outputNode.inputFormat(forBus: 0).sampleRate
+        let sr = rate > 0 ? rate : 44_100
+        switch c {
+        case .pad:
+            if pad == nil { pad = PadRenderer(sampleRate: sr) }
+        case .lockIn:
+            if lockIn == nil { lockIn = LockInRenderer(sampleRate: sr,
+                                                       schedule: LockInRenderer.auditionSchedule) }
+        default:
+            drone = DroneRenderer(mode: c.mode, sampleRate: sr)
         }
         if node == nil { buildNode() }
         if !engine.isRunning { try? engine.start() }
@@ -221,18 +94,12 @@ final class SoundLabEngine: ObservableObject {
         let format = engine.outputNode.inputFormat(forBus: 0)
         let sr = format.sampleRate > 0 ? format.sampleRate : 44_100
         let fadeStep = Float(1.0 / (2.0 * sr))
-        let twoPi = 2.0 * Double.pi
         let meterWindow = Int(sr / 4)        // publish level 4×/s
 
         let src = AVAudioSourceNode { [weak self] _, _, frameCount, abl -> OSStatus in
             guard let self else { return noErr }
             let buffers = UnsafeMutableAudioBufferListPointer(abl)
-            let partials = self.candidate.partials
-            let scale = self.candidate.masterScale
-            let hasTremolo = self.candidate.tremolo
-
-            let isLockIn = self.candidate == .lockIn
-            let isPad = self.candidate == .pad
+            let current = self.candidate
             for frame in 0..<Int(frameCount) {
                 if self.gain < self.targetGain { self.gain = min(self.targetGain, self.gain + fadeStep) }
                 if self.gain > self.targetGain { self.gain = max(self.targetGain, self.gain - fadeStep) }
@@ -241,53 +108,13 @@ final class SoundLabEngine: ObservableObject {
 
                 var left: Float = 0
                 var right: Float = 0
-
-                if isPad {
-                    // Shared production render — already master-scaled to raw RMS ≈ .18.
-                    if let out = self.pad?.render(t: t) {
-                        left = out.left; right = out.right
-                    }
-                } else if isLockIn {
-                    // 90 s audition cycle through the measured sections; ~3 s smoothed crossfades.
-                    let u = (t.truncatingRemainder(dividingBy: 90)) / 90
-                    let section = LockInPhase.at(u).index
-                    let k: Float = 0.33 / Float(sr)
-
-                    // Bed: dark two-stage low-passed brown (60–240 Hz plateau per the source).
-                    let bedTarget: Float = section >= 0 ? LockInBank.bedGain[section] : 1.0
-                    self.mixBed += (bedTarget - self.mixBed) * k
-                    self.brown += (Float.random(in: -1...1) - self.brown * 0.02)
-                    self.bedLP += (self.brown * 1.3 - self.bedLP) * 0.10
-                    self.bedLP2 += (self.bedLP - self.bedLP2) * 0.25
-                    let bed = self.bedLP2 * 0.36 * self.mixBed       // ≈ RMS .10 contribution
-
-                    left = bed
-                    right = bed
-                    for (i, tone) in LockInBank.tones.enumerated() {
-                        let tL: Float = section >= 0 ? tone.ampL[section] : 0
-                        let tR: Float = section >= 0 ? tone.ampR[section] : 0
-                        self.toneGL[i] += (tL - self.toneGL[i]) * k
-                        self.toneGR[i] += (tR - self.toneGR[i]) * k
-                        if self.toneGL[i] > 0.0005 || self.toneGR[i] > 0.0005 {
-                            self.tonePhases[i] += twoPi * tone.freq / sr
-                            if self.tonePhases[i] > twoPi { self.tonePhases[i] -= twoPi }
-                            let s = Float(sin(self.tonePhases[i])) * LockInBank.toneScale
-                            left += s * self.toneGL[i]
-                            right += s * self.toneGR[i]
-                        }
-                    }
-                } else {
-                    var s: Float = 0
-                    for (i, p) in partials.enumerated() {
-                        // Phase-continuous glide: instantaneous frequency wanders slowly around base.
-                        let f = p.baseHz * (1 + p.glideDepth * sin(twoPi * p.glideRate * t + p.glidePhase))
-                        self.phases[i] += twoPi * f / sr
-                        if self.phases[i] > twoPi { self.phases[i] -= twoPi }
-                        s += p.amp * Float(sin(self.phases[i]))
-                    }
-                    if hasTremolo { s *= Float(0.9 + 0.1 * sin(twoPi * 0.15 * t)) }
-                    s *= scale
-                    left = s; right = s
+                switch current {
+                case .pad:
+                    if let out = self.pad?.render(t: t) { left = out.left; right = out.right }
+                case .lockIn:
+                    if let out = self.lockIn?.render(t: t) { left = out.left; right = out.right }
+                default:
+                    if let s = self.drone?.render(t: t) { left = s; right = s }
                 }
 
                 let outL = max(-1, min(1, left * self.gain))
@@ -301,8 +128,8 @@ final class SoundLabEngine: ObservableObject {
                 if self.rmsCount >= meterWindow {
                     let rms = (self.rmsAccum / Double(self.rmsCount)).squareRoot()
                     let db = rms > 0 ? 20 * log10(rms) : -120
-                    let phaseName: String? = isLockIn
-                        ? LockInPhase.at((t.truncatingRemainder(dividingBy: 90)) / 90).name : nil
+                    let phaseName: String? = current == .lockIn
+                        ? LockInRenderer.auditionSchedule(t).name : nil
                     self.rmsAccum = 0; self.rmsCount = 0
                     DispatchQueue.main.async {
                         self.levelDB = db
@@ -326,7 +153,7 @@ struct SoundGalleryView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Text("ЗВУКИ ФОКУСА v2 — хам и дрон, частоты плывут, уровни выровнены")
+            Text("ЗВУКИ ФОКУСА v3 — все варианты доступны в Settings, уровни выровнены")
                 .font(.system(size: 12, weight: .medium)).foregroundStyle(.white.opacity(0.8))
 
             VStack(spacing: 8) {
@@ -402,7 +229,7 @@ enum SoundPreviewWindow {
     static func show() {
         let w = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 540, height: 480),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        w.title = "Hyperfocus — Focus Sound Gallery v2"
+        w.title = "Hyperfocus — Focus Sound Gallery v3"
         w.level = .floating
         w.isReleasedWhenClosed = false
         w.contentView = NSHostingView(rootView: SoundGalleryView())

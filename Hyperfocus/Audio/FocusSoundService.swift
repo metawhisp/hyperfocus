@@ -1,8 +1,11 @@
-// FocusSoundService.swift — procedural focus soundscape for hyperfocus sessions (canon #29).
-// Generated modes, no audio assets:
-//   • pad      — our own ambient pad (PadSynth.swift): tonal A/E chord, no noise — the default
-//   • brown    — deep brown-noise bed (speaker-safe)
-//   • binaural — 200 Hz left / 240 Hz right sine pair → perceived 40 Hz beat (headphones)
+// FocusSoundService.swift — procedural focus soundscape for hyperfocus sessions (canon #29/#31).
+// Generated modes, no audio assets — the user picks the starting sound in Settings and can
+// switch anytime:
+//   • pad         — our own ambient pad (PadSynth.swift): tonal A/E chord, no noise — the default
+//   • hum/drone   — tonal sine stacks with slow frequency drift (FocusScapes.swift)
+//   • lockIn      — the LOCK IN protocol: sectioned A/E drone following the session clock
+//   • brown       — deep brown-noise bed (speaker-safe)
+//   • binaural    — 200 Hz left / 240 Hz right sine pair → perceived 40 Hz beat (headphones)
 // Starts with the session and swells in over ~12 s on a perceptual (squared) curve — the music
 // must appear gradually, never as a jump cut. Ducks while away (the alarm owns that moment).
 // No efficacy claims are made in UI copy — these are "focus frequencies", not medicine.
@@ -10,13 +13,28 @@
 import AVFoundation
 
 enum FocusSoundMode: String, Codable, CaseIterable {
-    case pad, brown, binaural, custom
+    case pad, humTide, humSweep, droneChorus, droneFifth, warmHybrid, lockIn
+    case brown, binaural, custom
+
     var displayName: String {
         switch self {
         case .pad: return "Ambient Pad"
+        case .humTide: return "Deep Hum · Tide"
+        case .humSweep: return "Deep Hum · Sweep"
+        case .droneChorus: return "Warm Drone · Chorus"
+        case .droneFifth: return "Warm Drone · Fifth"
+        case .warmHybrid: return "Warm Hum"
+        case .lockIn: return "Lock In"
         case .brown: return "Deep Noise"
         case .binaural: return "Focus Beats 40 Hz"
         case .custom: return "Custom Audio"
+        }
+    }
+
+    var isDrone: Bool {
+        switch self {
+        case .humTide, .humSweep, .droneChorus, .droneFifth, .warmHybrid: return true
+        default: return false
         }
     }
 }
@@ -40,7 +58,14 @@ final class FocusSoundService {
     private var phaseL: Double = 0
     private var phaseR: Double = 0
     private var padRenderer: PadRenderer?
+    private var droneRenderer: DroneRenderer?
+    private var lockInRenderer: LockInRenderer?
     private var sampleIndex: Double = 0
+    /// Session-relative clock for section schedules and slow LFOs: away stop/start cycles restart
+    /// the engine (sampleIndex resets), but the soundscape must continue from where the SESSION is —
+    /// otherwise LOCK IN replays its intro after every away trip and s2/s3 are never reached.
+    private var sessionAnchor: Date?
+    private var scheduleOffset: Double = 0
     private var fade: Float = 0       // 0→1 ramp; applied SQUARED so the swell feels gradual
     private var targetGain: Float = 0.1
     private var mode: FocusSoundMode = .brown
@@ -57,10 +82,8 @@ final class FocusSoundService {
         }
         let clamped = min(volume, 1) * maxGain                   // slider 0…1 → whisper range
         guard !isPlaying else {
-            if mode == .pad && padRenderer == nil {              // live mode switch must not go silent
-                let sr = engine.outputNode.inputFormat(forBus: 0).sampleRate
-                padRenderer = PadRenderer(sampleRate: sr > 0 ? sr : 44_100)
-            }
+            let sr = engine.outputNode.inputFormat(forBus: 0).sampleRate
+            prepareRenderers(for: mode, sampleRate: sr > 0 ? sr : 44_100, keepExisting: true)
             self.mode = mode
             targetGain = clamped
             return
@@ -70,11 +93,12 @@ final class FocusSoundService {
         fade = 0
         brownL = 0; brownR = 0; lpL = 0; lpR = 0; phaseL = 0; phaseR = 0
         sampleIndex = 0
+        if sessionAnchor == nil { sessionAnchor = Date() }      // defensive: beginSession owns this
+        scheduleOffset = Date().timeIntervalSince(sessionAnchor ?? Date())
 
         let format = engine.outputNode.inputFormat(forBus: 0)
         let sampleRate = format.sampleRate > 0 ? format.sampleRate : 44_100
-        // Allocate ahead of time — never on the realtime render thread.
-        padRenderer = mode == .pad ? PadRenderer(sampleRate: sampleRate) : nil
+        prepareRenderers(for: mode, sampleRate: sampleRate, keepExisting: false)
         let fadeStep = Float(1.0 / (fadeInSeconds * sampleRate))
         let leftHz = 200.0, rightHz = 240.0                     // Δ40 Hz gamma-band beat
         let twoPi = 2.0 * Double.pi
@@ -88,12 +112,26 @@ final class FocusSoundService {
                 let gain = self.targetGain * self.fade * self.fade
                 self.sampleIndex += 1
 
+                // Session-relative time: survives the engine restarts around away trips, so
+                // LOCK IN sections and the slow LFOs continue instead of replaying the intro.
+                let t = self.scheduleOffset + self.sampleIndex / sampleRate
+
                 var left: Float = 0
                 var right: Float = 0
                 switch self.mode {
                 case .pad:
                     // Our generated ambient pad (shared PadRenderer, already RMS-scaled).
-                    if let out = self.padRenderer?.render(t: self.sampleIndex / sampleRate) {
+                    if let out = self.padRenderer?.render(t: t) {
+                        left = out.left; right = out.right
+                    }
+                case .humTide, .humSweep, .droneChorus, .droneFifth, .warmHybrid:
+                    // Tonal drone/hum family (shared DroneRenderer, already RMS-scaled).
+                    if let s = self.droneRenderer?.render(t: t) {
+                        left = s; right = s
+                    }
+                case .lockIn:
+                    // LOCK IN protocol — sections follow the session clock.
+                    if let out = self.lockInRenderer?.render(t: t) {
                         left = out.left; right = out.right
                     }
                 case .brown:
@@ -139,6 +177,34 @@ final class FocusSoundService {
         } catch {
             NSLog("Hyperfocus: focus sound engine failed to start: \(error.localizedDescription)")
             cleanup()
+        }
+    }
+
+    /// Anchor the session clock — called once per hyperfocus session (.startTimer), NOT on the
+    /// away resume; that is what lets the soundscape continue across away stop/start cycles.
+    func beginSession() { sessionAnchor = Date() }
+
+    /// The session ended (.stopTimer) — the next session starts its arc from zero.
+    func endSession() { sessionAnchor = nil }
+
+    /// Allocate the mode's renderer ahead of time — never on the realtime render thread.
+    /// `keepExisting` (live mode switch while playing) preserves an already-running renderer's
+    /// phase state; a fresh start always rebuilds so every session begins from silence.
+    private func prepareRenderers(for mode: FocusSoundMode, sampleRate: Double, keepExisting: Bool) {
+        if mode == .pad, !(keepExisting && padRenderer != nil) {
+            padRenderer = PadRenderer(sampleRate: sampleRate)
+        }
+        if mode.isDrone {
+            // A drone renderer is mode-specific — rebuild whenever the target mode changes.
+            droneRenderer = DroneRenderer(mode: mode, sampleRate: sampleRate)
+        }
+        if mode == .lockIn, !(keepExisting && lockInRenderer != nil) {
+            lockInRenderer = LockInRenderer(sampleRate: sampleRate, schedule: LockInPhase.production(elapsed:))
+        }
+        if !keepExisting {
+            if mode != .pad { padRenderer = nil }
+            if !mode.isDrone { droneRenderer = nil }
+            if mode != .lockIn { lockInRenderer = nil }
         }
     }
 
