@@ -158,6 +158,155 @@ private struct NebulaOrbPreview: View {
     }
 }
 
+// MARK: Plasma variations (round 2) — the user picked plasma; red is styled as a dim "ember" sleep
+
+private struct PlasmaConfig {
+    var rimWidth: CGFloat = 3.2
+    var rimBrightness: Double = 1.0
+    var whiteHighlights: Double = 1.0
+    var particles = false          // B-style rotating particle texture inside the core (live: rotates)
+    var wisps = false
+    var haloStrength: Double = 0.45
+    var seed: Double = 0.18
+    var ember = false              // red sleep style: dim, gapped rim, warm faint highlights
+}
+
+private struct PlasmaVariantPreview: View {
+    let color: Color
+    var cfg: PlasmaConfig
+
+    private var rimStops: [Gradient.Stop] {
+        let b = cfg.rimBrightness
+        if cfg.ember {
+            return [
+                .init(color: color.opacity(0.00), location: 0.00),
+                .init(color: color.opacity(0.50 * b), location: 0.09),
+                .init(color: color.opacity(0.04), location: 0.20),
+                .init(color: color.opacity(0.42 * b), location: 0.36),
+                .init(color: color.opacity(0.02), location: 0.50),
+                .init(color: color.opacity(0.55 * b), location: 0.63),
+                .init(color: color.opacity(0.06), location: 0.76),
+                .init(color: color.opacity(0.35 * b), location: 0.90),
+                .init(color: color.opacity(0.00), location: 1.00),
+            ]
+        }
+        return [
+            .init(color: color.opacity(0.05 * b), location: 0.00),
+            .init(color: color.opacity(0.85 * b), location: 0.10),
+            .init(color: .white.opacity(0.95 * b), location: 0.16),
+            .init(color: color.opacity(0.35 * b), location: 0.28),
+            .init(color: color.opacity(0.90 * b), location: 0.45),
+            .init(color: .white.opacity(0.80 * b), location: 0.52),
+            .init(color: color.opacity(0.20 * b), location: 0.66),
+            .init(color: color.opacity(0.75 * b), location: 0.82),
+            .init(color: .white.opacity(0.65 * b), location: 0.90),
+            .init(color: color.opacity(0.05 * b), location: 1.00),
+        ]
+    }
+
+    private func arc(_ from: Double, _ to: Double, width: CGFloat, blur: CGFloat,
+                     _ col: Color, d: CGFloat) -> some View {
+        Circle().trim(from: from, to: to)
+            .stroke(col, style: StrokeStyle(lineWidth: width, lineCap: .round))
+            .frame(width: d, height: d)
+            .rotationEffect(.degrees(cfg.seed * 360 - 90))
+            .blur(radius: blur)
+    }
+
+    var body: some View {
+        let d: CGFloat = 42
+        let hi = cfg.whiteHighlights * (cfg.ember ? 0.45 : 1.0)
+        let hiColor: Color = cfg.ember ? Color(red: 1.0, green: 0.72, blue: 0.55) : .white
+        ZStack {
+            Circle().fill(RadialGradient(colors: [color.opacity(cfg.haloStrength * (cfg.ember ? 0.55 : 1)), .clear],
+                                         center: .center, startRadius: d * 0.30, endRadius: d * 0.95))
+                .frame(width: d * 1.9, height: d * 1.9)
+            Circle().fill(RadialGradient(colors: [color.opacity(cfg.ember ? 0.18 : 0.28), Color.black.opacity(0.80)],
+                                         center: UnitPoint(x: 0.36, y: 0.32),
+                                         startRadius: 1, endRadius: d * 0.62))
+                .frame(width: d, height: d)
+            if cfg.particles {
+                ParticleOrbPreview(color: color)
+                    .frame(width: d * 1.7, height: d * 1.7)
+                    .scaleEffect(0.62)
+                    .clipShape(Circle().inset(by: 2))
+                    .opacity(cfg.ember ? 0.35 : 0.6)
+                    .frame(width: d, height: d)
+            }
+            Circle().stroke(color.opacity((cfg.ember ? 0.4 : 0.85) * cfg.rimBrightness),
+                            lineWidth: cfg.rimWidth * 0.5)
+                .frame(width: d, height: d).blur(radius: 0.6)
+            Circle().stroke(AngularGradient(stops: rimStops, center: .center, angle: .degrees(cfg.seed * 360)),
+                            lineWidth: cfg.rimWidth)
+                .frame(width: d, height: d).blur(radius: 1.4)
+            arc(0.03 + cfg.seed * 0.05, 0.15 + cfg.seed * 0.05, width: 2.6, blur: 1.1,
+                hiColor.opacity(0.95 * hi), d: d)
+            arc(0.44, 0.53, width: 2.2, blur: 1.3, hiColor.opacity(0.80 * hi), d: d)
+            arc(0.72, 0.84, width: 2.8, blur: 1.6, color.opacity(0.95 * min(1, hi + 0.2)), d: d)
+            if cfg.wisps {
+                Ellipse().fill(color.opacity(cfg.ember ? 0.22 : 0.38)).frame(width: 22, height: 10)
+                    .rotationEffect(.degrees(-24)).offset(x: -4, y: 5).blur(radius: 4)
+                Ellipse().fill(hiColor.opacity(cfg.ember ? 0.10 : 0.22)).frame(width: 14, height: 7)
+                    .rotationEffect(.degrees(18)).offset(x: 6, y: -5).blur(radius: 3)
+                Ellipse().fill(color.opacity(cfg.ember ? 0.14 : 0.26)).frame(width: 16, height: 7)
+                    .rotationEffect(.degrees(52)).offset(x: 2, y: 8).blur(radius: 4)
+            }
+        }
+    }
+}
+
+struct PlasmaVariantsGalleryView: View {
+    private let green = Color(red: 0.16, green: 0.92, blue: 0.55)
+    private let redEmber = Color(red: 0.88, green: 0.20, blue: 0.22)
+
+    var body: some View {
+        let variants: [(String, PlasmaConfig)] = [
+            ("P1 · Classic", PlasmaConfig(seed: 0.12)),
+            ("P2 · +Particles", PlasmaConfig(particles: true, seed: 0.33)),
+            ("P3 · Liquid", PlasmaConfig(rimWidth: 4.6, whiteHighlights: 1.35, haloStrength: 0.52, seed: 0.57)),
+            ("P4 · Nebula+", PlasmaConfig(wisps: true, haloStrength: 0.60, seed: 0.74)),
+            ("P5 · Minimal", PlasmaConfig(rimWidth: 2.0, whiteHighlights: 0.55, haloStrength: 0.28, seed: 0.91)),
+        ]
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .top, spacing: 18) {
+                rowLabel("фокус\n(зелёный)")
+                ForEach(Array(variants.enumerated()), id: \.offset) { _, v in
+                    PlasmaVariantPreview(color: green, cfg: v.1)
+                        .frame(width: 108, height: 100)
+                }
+            }
+            HStack(alignment: .top, spacing: 18) {
+                rowLabel("сон\n(ember)")
+                ForEach(Array(variants.enumerated()), id: \.offset) { _, v in
+                    var cfg = v.1
+                    let _ = { cfg.ember = true }()
+                    PlasmaVariantPreview(color: redEmber, cfg: cfg)
+                        .frame(width: 108, height: 100)
+                }
+            }
+            HStack(spacing: 18) {
+                rowLabel("")
+                ForEach(Array(variants.enumerated()), id: \.offset) { _, v in
+                    Text(v.0)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .frame(width: 108)
+                }
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.055, green: 0.065, blue: 0.09))
+    }
+
+    private func rowLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10))
+            .foregroundStyle(.white.opacity(0.5))
+            .multilineTextAlignment(.trailing)
+            .frame(width: 58, alignment: .trailing)
+    }
+}
+
 // MARK: Gallery
 
 struct OrbGalleryView: View {
@@ -191,17 +340,22 @@ struct OrbGalleryView: View {
 @MainActor
 enum OrbPreviewRenderer {
     static func render() {
-        let renderer = ImageRenderer(content: OrbGalleryView())
+        write(OrbGalleryView(), name: "orb_gallery.png")
+        write(PlasmaVariantsGalleryView(), name: "orb_plasma_variants.png")
+    }
+
+    private static func write(_ view: some View, name: String) {
+        let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else {
-            NSLog("Hyperfocus: orb gallery render failed"); return
+            NSLog("Hyperfocus: gallery render failed for \(name)"); return
         }
-        let url = dir.appendingPathComponent("orb_gallery.png")
+        let url = dir.appendingPathComponent(name)
         try? png.write(to: url)
-        NSLog("Hyperfocus: orb gallery written to \(url.path)")
+        NSLog("Hyperfocus: gallery written to \(url.path)")
     }
 }
 #endif
