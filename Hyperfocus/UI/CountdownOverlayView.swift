@@ -41,13 +41,25 @@ struct CountdownOverlayView: View {
         app.settings.cinematicCountdownEnabled && (app.context.config?.intensity ?? .cinematic) == .cinematic
     }
 
+    /// Per-frame hold times. Each voice clip has its own pace — the digits follow the VOICE,
+    /// never the other way around (user: speeding the voice up sounds terrible). Gideon's
+    /// original clip speaks Three/Two/One/Focus at 2.25/3.25/4.3/5.55 s; frames land ~0.1 s
+    /// ahead of each word (frame period = hold + 0.22 s of fade/gap).
+    private var holds: [Double] {
+        if app.settings.voicePromptsEnabled && app.settings.voicePersona == .gideon {
+            return [1.93, 0.78, 0.83, 1.03, 1.0]
+        }
+        let hold = cinematic ? 0.9 : 0.75
+        return Array(repeating: hold, count: sequence.count)
+    }
+
     private func runStep() {
         let reduce = app.settings.reduceMotion
         textOpacity = 0; textScale = reduce ? 1.0 : 0.85
         withAnimation(.easeOut(duration: reduce ? 0.15 : (cinematic ? 0.4 : 0.28))) {
             textOpacity = 1; textScale = reduce ? 1.0 : 1.06
         }
-        let hold = cinematic ? 0.9 : 0.75
+        let hold = holds[min(index, holds.count - 1)]
         DispatchQueue.main.asyncAfter(deadline: .now() + hold) {
             withAnimation(.easeIn(duration: 0.2)) { textOpacity = 0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
