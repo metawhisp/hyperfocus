@@ -33,6 +33,7 @@ enum Constants {
         static let alarmEnabled = "hf.alarmEnabled"
         static let soundVolume = "hf.soundVolume"
         static let voiceStyle = "hf.voiceStyle"
+        static let voicePersona = "hf.voicePersona"
         static let auraIntensity = "hf.auraIntensity"
         static let auraThickness = "hf.auraThickness"
         static let reduceMotion = "hf.reduceMotion"
@@ -59,6 +60,7 @@ enum Constants {
         static let alarmEnabled = true
         static let soundVolume: Double = 0.5
         static let voiceStyle: VoiceStyle = .calm
+        static let voicePersona: VoicePersona = .caspian
         static let auraIntensity: Double = 0.7      // range 0.2–1.0
         static let auraThickness: Double = 1.0      // range 0.5–1.5, multiplier on Aura.baseThickness
         static let reduceMotion = false

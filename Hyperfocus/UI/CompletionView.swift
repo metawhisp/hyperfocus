@@ -19,10 +19,10 @@ struct CompletionView: View {
 
                 VStack(spacing: 8) {
                     statRow("Mission", ctx.config?.mission ?? "—")
-                    statRow("Focus time", mmss(Int(ctx.activeFocusSeconds.rounded())))
-                    statRow("Paused time", mmss(Int(ctx.pausedSeconds.rounded())))
-                    statRow("Breaks", "\(ctx.breakCount)")
-                    statRow("Longest streak", mmss(Int(ctx.longestStreakSeconds.rounded())))
+                    statRow("Focus time", mmss(Int(ctx.activeFocusSeconds.rounded())), segmented: true)
+                    statRow("Paused time", mmss(Int(ctx.pausedSeconds.rounded())), segmented: true)
+                    statRow("Breaks", "\(ctx.breakCount)", segmented: true)
+                    statRow("Longest streak", mmss(Int(ctx.longestStreakSeconds.rounded())), segmented: true)
                 }
 
                 Text(Constants.Copy.completionQuestion)
@@ -44,11 +44,14 @@ struct CompletionView: View {
         }
     }
 
-    private func statRow(_ label: String, _ value: String) -> some View {
+    private func statRow(_ label: String, _ value: String, segmented: Bool = false) -> some View {
         HStack {
             Text(label).font(.system(size: 12)).foregroundStyle(.secondary)
             Spacer()
-            Text(value).font(.system(size: 12, weight: .medium)).lineLimit(1)
+            Text(value)
+                .font(segmented ? SegFont.seg7(14) : .system(size: 12, weight: .medium))
+                .foregroundStyle(segmented ? Palette.green : .primary)
+                .lineLimit(1)
         }
     }
 

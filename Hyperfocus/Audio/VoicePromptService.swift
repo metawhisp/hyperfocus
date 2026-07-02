@@ -1,8 +1,8 @@
-// VoicePromptService.swift — plays the bundled cinematic voice clips (VoicePrompting), TTS fallback (canon §6, §13 #19).
+// VoicePromptService.swift — plays the bundled cinematic voice clips (VoicePrompting), TTS fallback (canon §6, §13 #19/#21).
 //
-// The four prompts are pre-recorded with a deep cinematic male voice (Higgsfield "Caspian", seed_audio)
-// and bundled as WAVs under Resources/Voice. If a clip is ever missing, we fall back to AVSpeech so the
-// app still speaks. `style` no longer changes the timbre (the clip is fixed) but is kept for the fallback.
+// Each persona (Caspian, Gideon — deep cinematic male voices from Higgsfield seed_audio) has its own
+// four WAVs under Resources/Voice named "<persona>_<line>.wav". If a clip is missing we fall back to
+// AVSpeech so the app still speaks.
 
 import AVFoundation
 
@@ -10,16 +10,16 @@ final class VoicePromptService: VoicePrompting {
     private var player: AVAudioPlayer?
     private let synthesizer = AVSpeechSynthesizer()   // fallback only
 
-    func speak(_ line: VoiceLine, style: VoiceStyle) {
-        if let url = Self.clipURL(for: line), let player = try? AVAudioPlayer(contentsOf: url) {
+    func speak(_ line: VoiceLine, persona: VoicePersona) {
+        if let url = Self.clipURL(for: line, persona: persona),
+           let player = try? AVAudioPlayer(contentsOf: url) {
             self.player?.stop()
             self.player = player
             player.prepareToPlay()
             player.play()
         } else {
             let utterance = AVSpeechUtterance(string: Constants.Copy.voiceLine(line))
-            utterance.rate = Constants.Voice.rate(for: style)
-            utterance.pitchMultiplier = Constants.Voice.pitchMultiplier(for: style)
+            utterance.rate = 0.45
             utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
             synthesizer.speak(utterance)
         }
@@ -31,14 +31,14 @@ final class VoicePromptService: VoicePrompting {
         synthesizer.stopSpeaking(at: .immediate)
     }
 
-    private static func clipURL(for line: VoiceLine) -> URL? {
-        let name: String
+    private static func clipURL(for line: VoiceLine, persona: VoicePersona) -> URL? {
+        let lineName: String
         switch line {
-        case .countdown: name = "countdown"
-        case .away:      name = "away"
-        case .restored:  name = "restored"
-        case .complete:  name = "complete"
+        case .countdown: lineName = "countdown"
+        case .away:      lineName = "away"
+        case .restored:  lineName = "restored"
+        case .complete:  lineName = "complete"
         }
-        return Bundle.main.url(forResource: name, withExtension: "wav")
+        return Bundle.main.url(forResource: "\(persona.rawValue)_\(lineName)", withExtension: "wav")
     }
 }

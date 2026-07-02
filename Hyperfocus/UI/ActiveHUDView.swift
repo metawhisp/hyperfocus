@@ -16,9 +16,11 @@ struct ActiveHUDView: View {
                     .lineLimit(2)
 
                 Text(mmss(Int(ctx.remainingFocusTime.rounded())))
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
+                    .font(SegFont.seg7(30))               // analog 7-segment clock face
                     .foregroundStyle(.white)
+                    .shadow(color: statusColor.opacity(0.5), radius: 6)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
 
                 HStack(spacing: 7) {
                     Circle().fill(statusColor).frame(width: 8, height: 8)

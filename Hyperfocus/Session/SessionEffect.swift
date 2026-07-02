@@ -25,3 +25,9 @@ enum CameraState: Equatable {
 }
 
 enum VoiceStyle: String, Codable, CaseIterable { case calm, strict, cinematic }
+
+/// Which pre-recorded voice speaks the prompts (user-selectable in Settings; canon §13 #21).
+enum VoicePersona: String, Codable, CaseIterable {
+    case caspian, gideon
+    var displayName: String { rawValue.capitalized }
+}

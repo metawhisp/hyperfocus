@@ -85,9 +85,10 @@ private struct CountdownPreview: View {
         ZStack {
             Color.black.opacity(0.82)
             Text("FOCUS")
-                .font(.system(size: 128, weight: .bold, design: .rounded))
+                .font(SegFont.seg14(116))
                 .foregroundStyle(.white)
                 .shadow(color: Palette.green.opacity(0.9), radius: 34)
+                .minimumScaleFactor(0.4).lineLimit(1).padding(.horizontal, 24)
         }
     }
 }

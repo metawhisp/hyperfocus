@@ -53,12 +53,12 @@ struct SettingsView: View {
 
             Section("Sound") {
                 Toggle("Voice prompts", isOn: boolBinding({ settings.voicePromptsEnabled }, { settings.voicePromptsEnabled = $0 }))
+                Picker("Voice", selection: enumBinding({ settings.voicePersona }, { settings.voicePersona = $0 })) {
+                    ForEach(VoicePersona.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
                 Toggle("Alarm sound", isOn: boolBinding({ settings.alarmEnabled }, { settings.alarmEnabled = $0 }))
                 LabeledContent("Volume") {
                     Slider(value: doubleBinding({ settings.soundVolume }, { settings.soundVolume = $0 }), in: 0...1).frame(width: 180)
-                }
-                Picker("Voice style", selection: enumBinding({ settings.voiceStyle }, { settings.voiceStyle = $0 })) {
-                    ForEach(VoiceStyle.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
                 }
             }
 

@@ -116,7 +116,7 @@ final class SessionCoordinator {
         case .stopCamera:               presence?.stop(); presence = nil
         case .startAlarm:               if settings.alarmEnabled { alarm.start(volume: alarmVolume()) }
         case .stopAlarm:                alarm.stop()
-        case .playVoice(let line):      if settings.voicePromptsEnabled { voice.speak(line, style: settings.voiceStyle) }
+        case .playVoice(let line):      if settings.voicePromptsEnabled { voice.speak(line, persona: settings.voicePersona) }
         case .showAwayCard:             showAwayCard()
         case .hideAwayCard:             dismiss(&awayPanel)
         case .showRecoveryCountdown, .hideRecoveryCountdown: break   // AwayModeView reacts to state == .recovering

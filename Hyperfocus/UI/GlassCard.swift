@@ -15,6 +15,13 @@ func mmss(_ seconds: Int) -> String {
     return String(format: "%02d:%02d", s / 60, s % 60)
 }
 
+/// Segmented "analog" display font (DSEG, bundled under Resources/Fonts). Falls back to system if the
+/// font failed to register. DSEG7 = 7-segment (numbers/clock), DSEG14 = 14-segment (alphanumeric).
+enum SegFont {
+    static func seg7(_ size: CGFloat) -> Font { .custom("DSEG7Classic-Bold", size: size) }
+    static func seg14(_ size: CGFloat) -> Font { .custom("DSEG14Classic-Bold", size: size) }
+}
+
 /// Dark translucent glass card: ultraThinMaterial, continuous corners, hairline stroke, soft shadow.
 struct GlassCard<Content: View>: View {
     var width: CGFloat? = nil

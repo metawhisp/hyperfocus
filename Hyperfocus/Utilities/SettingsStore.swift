@@ -104,6 +104,14 @@ final class SettingsStore {
         set { defaults.set(newValue.rawValue, forKey: Constants.SettingsKeys.voiceStyle) }
     }
 
+    var voicePersona: VoicePersona {
+        get {
+            let raw = defaults.string(forKey: Constants.SettingsKeys.voicePersona) ?? ""
+            return VoicePersona(rawValue: raw) ?? Constants.Defaults.voicePersona
+        }
+        set { defaults.set(newValue.rawValue, forKey: Constants.SettingsKeys.voicePersona) }
+    }
+
     // MARK: Visual
 
     var auraIntensity: Double {
