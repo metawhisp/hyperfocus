@@ -172,18 +172,34 @@ final class SessionCoordinator {
             self?.onboardingWindow = nil
         }
         let view = OnboardingView(
-            requestCamera: { [weak self] done in self?.permission.requestAccess(completion: done) },
+            requestCamera: { [weak self] done in
+                self?.permission.requestAccess { granted in
+                    done(granted)
+                    // The TCC dialog steals key status from this agent app — bring the flow back.
+                    self?.refocusOnboarding()
+                }
+            },
             requestScreen: { [weak self] done in self?.screenPermission.requestAccess(completion: done) },
             onStartFirstSession: { [weak self] mission, minutes in
                 closeOnboarding()
                 // Activation moment: the user leaves onboarding inside a running session.
                 self?.appState?.quickStart(minutes: minutes, mission: mission)
             },
-            onFinish: closeOnboarding)
+            onFinish: closeOnboarding,
+            screenAuthorized: { [weak self] in self?.screenPermission.isAuthorized ?? false })
         let w = makeStandardWindow(title: "Welcome to Hyperfocus", view: view,
                                    size: CGSize(width: 480, height: 500))
         onboardingWindow = w
+        // First-run window goes to a display the user isn't using fullscreen — never on top
+        // of a fullscreen app, and no forced Space switch on multi-display setups.
+        centerOnFreeScreen(w)
         present(w)
+    }
+
+    private func refocusOnboarding() {
+        guard let w = onboardingWindow else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
     }
 
     // MARK: Effect execution
@@ -485,6 +501,50 @@ final class SessionCoordinator {
     private func present(_ window: NSWindow) {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Center the window on a display that is NOT covered by someone's fullscreen window,
+    /// so first-run UI never lands on top of a movie/presentation. Falls back to the main screen.
+    private func centerOnFreeScreen(_ window: NSWindow) {
+        guard let target = Self.screenWithoutFullscreenWindow() else { return }
+        let vf = target.visibleFrame
+        let size = window.frame.size
+        window.setFrameOrigin(CGPoint(x: vf.midX - size.width / 2,
+                                      y: vf.midY - size.height / 2))
+    }
+
+    /// A screen counts as "busy" when an on-screen normal-layer window of another app covers
+    /// ≥90% of it (fullscreen video, presentation, fullscreen Space on that display).
+    static func screenWithoutFullscreenWindow() -> NSScreen? {
+        let screens = NSScreen.screens
+        guard let primary = screens.first else { return nil }
+        guard let info = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        else { return NSScreen.main }
+
+        let myPID = Int(ProcessInfo.processInfo.processIdentifier)
+        let covers: [CGRect] = info.compactMap { w in
+            guard (w[kCGWindowLayer as String] as? Int) == 0,
+                  (w[kCGWindowOwnerPID as String] as? Int) != myPID,
+                  let b = w[kCGWindowBounds as String] as? [String: CGFloat]
+            else { return nil }
+            return CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0,
+                          width: b["Width"] ?? 0, height: b["Height"] ?? 0)
+        }
+
+        func isBusy(_ screen: NSScreen) -> Bool {
+            // NSScreen is bottom-left origin; CGWindow bounds are top-left of the primary display.
+            let f = screen.frame
+            let cgFrame = CGRect(x: f.origin.x, y: primary.frame.maxY - f.maxY,
+                                 width: f.width, height: f.height)
+            let area = f.width * f.height
+            return covers.contains { c in
+                let i = c.intersection(cgFrame)
+                return !i.isNull && (i.width * i.height) >= area * 0.9
+            }
+        }
+
+        return screens.first { !isBusy($0) } ?? NSScreen.main
     }
 
     private func placeNearOrb(_ panel: NSPanel) {

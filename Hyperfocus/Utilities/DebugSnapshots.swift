@@ -27,6 +27,14 @@ enum DebugSnapshots {
         // Realistic laptop-screen aspect — the intro phrase needs the width to scale-to-fit.
         snap(CountdownPreview(), "countdown", dir, CGSize(width: 1470, height: 828))
 
+        // Onboarding permission steps (copy + rhythm review).
+        snap(OnboardingView(requestCamera: { _ in }, requestScreen: { _ in },
+                            onStartFirstSession: { _, _ in }, onFinish: {}, step: 2),
+             "onboarding_camera", dir, CGSize(width: 480, height: 500))
+        snap(OnboardingView(requestCamera: { _ in }, requestScreen: { _ in },
+                            onStartFirstSession: { _, _ in }, onFinish: {}, step: 3),
+             "onboarding_screen", dir, CGSize(width: 480, height: 500))
+
         // Aura frame uniformity check (A1): even glow along the whole perimeter, corners included.
         let auraModel = AuraModel()
         auraModel.visible = true

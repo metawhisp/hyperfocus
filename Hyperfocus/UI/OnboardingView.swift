@@ -10,24 +10,29 @@ struct OnboardingView: View {
     var onStartFirstSession: (String, Int) -> Void
     var onFinish: () -> Void
     var onSuggest: () -> String? = { nil }   // magic wand parity with the READY? card
+    /// Live re-check when the user returns from System Settings (Screen Recording grant).
+    var screenAuthorized: () -> Bool = { false }
 
     @State private var step: Int
     @State private var mission: String
     @State private var minutes = 15
     @State private var cameraGranted: Bool?
     @State private var screenGranted: Bool?
+    @State private var screenSettingsHint = false   // shown once ENABLE bounced to System Settings
 
     init(requestCamera: @escaping (@escaping (Bool) -> Void) -> Void,
          requestScreen: @escaping (@escaping (Bool) -> Void) -> Void,
          onStartFirstSession: @escaping (String, Int) -> Void,
          onFinish: @escaping () -> Void,
          onSuggest: @escaping () -> String? = { nil },
+         screenAuthorized: @escaping () -> Bool = { false },
          step: Int = 0, mission: String = "") {
         self.requestCamera = requestCamera
         self.requestScreen = requestScreen
         self.onStartFirstSession = onStartFirstSession
         self.onFinish = onFinish
         self.onSuggest = onSuggest
+        self.screenAuthorized = screenAuthorized
         _step = State(initialValue: step)
         _mission = State(initialValue: mission)
     }
@@ -129,66 +134,96 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: Step 3 — camera (value first, then permission)
+    // MARK: Step 3 — camera (value first, then permission). The TCC dialog shows in place;
+    // on grant the flow moves on by itself, on refusal the user continues manually.
 
     private var cameraStep: some View {
         permissionStep(
             icon: PixelIcon.target, iconColor: FD.lime,
             title: "IT SEES YOU DRIFT",
-            body: "Leave your Mac and the timer pauses —\na gentle sound calls you back.",
-            highlight: "CAMERA REQUIRED FOR THE FULL EXPERIENCE",
-            privacy: "Frames never leave your Mac. No recording, no upload.",
+            body: "Walk away — the timer pauses.\nA gentle sound calls you back.",
+            privacy: "Camera stays on this Mac. Nothing is recorded.",
             granted: cameraGranted,
+            hint: nil,
             enableTitle: "ENABLE CAMERA",
-            enable: { requestCamera { granted in cameraGranted = granted; step = 3 } },
-            skip: { step = 3 }
+            enable: { requestCamera { granted in
+                cameraGranted = granted
+                if granted { DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { step = 3 } }
+            } },
+            skip: { step = 3 },
+            skipTitle: cameraGranted == nil ? "Not now" : "Continue"
         )
     }
 
-    // MARK: Step 4 — screen analysis
+    // MARK: Step 4 — screen analysis. Screen Recording can only be granted in System Settings
+    // (macOS opens it itself) — say so instead of silently bouncing, and don't advance the step.
 
     private var screenStep: some View {
         permissionStep(
             icon: PixelIcon.bolt, iconColor: FD.amber,
             title: "DISTRACTION RADAR",
-            body: "Spots YouTube or a feed on your screen\nand nudges you back to the task.",
-            highlight: nil,
-            privacy: "Analyzed locally. Never stored, never sent.",
+            body: "Drifting into YouTube or a feed?\nA nudge pulls you back to the task.",
+            privacy: "Reads the screen on this Mac only. Never stored.",
             granted: screenGranted,
-            enableTitle: "ENABLE SCREEN ACCESS",
-            enable: { requestScreen { granted in screenGranted = granted; step = 4 } },
-            skip: { step = 4 }
+            hint: screenSettingsHint && screenGranted != true
+                ? "macOS opens System Settings — switch Hyperfocus on, then come back."
+                : nil,
+            enableTitle: "ENABLE RADAR",
+            enable: {
+                screenSettingsHint = true
+                requestScreen { granted in
+                    screenGranted = granted
+                    if granted { DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { step = 4 } }
+                }
+            },
+            skip: { step = 4 },
+            skipTitle: screenSettingsHint ? "Continue" : "Not now"
         )
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Back from System Settings — pick up the grant without restarting the flow.
+            if screenSettingsHint && screenGranted != true && screenAuthorized() {
+                screenGranted = true
+            }
+        }
     }
 
     private func permissionStep(icon: [String], iconColor: Color, title: String, body bodyText: String,
-                                highlight: String?, privacy: String,
-                                granted: Bool?, enableTitle: String,
-                                enable: @escaping () -> Void, skip: @escaping () -> Void) -> some View {
-        VStack(spacing: 12) {
+                                privacy: String, granted: Bool?, hint: String?, enableTitle: String,
+                                enable: @escaping () -> Void, skip: @escaping () -> Void,
+                                skipTitle: String) -> some View {
+        VStack(spacing: 0) {
             Spacer()
             PixelIcon(pattern: icon, color: iconColor, pixel: 3.4)
+                .padding(.bottom, 22)
             Text(title).font(FD.matrix(20)).foregroundStyle(.white)
+                .padding(.bottom, 14)
             Text(bodyText)
-                .font(.system(size: 12)).foregroundStyle(FD.label)
+                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.75))
                 .multilineTextAlignment(.center)
-            if let highlight {
-                Text(highlight)
-                    .font(.system(size: 9, weight: .bold)).tracking(1.2)
-                    .foregroundStyle(FD.amber)
+                .lineSpacing(3)
+            Group {
+                if let hint {
+                    Text(hint)
+                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(FD.amber)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 320)
+                } else if let granted {
+                    Label(granted ? "Access granted" : "Not enabled",
+                          systemImage: granted ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(granted ? FD.lime : FD.label)
+                }
             }
-            Text(privacy).font(.system(size: 10)).foregroundStyle(FD.label)
-            if let granted {
-                Label(granted ? "Access granted" : "Not enabled",
-                      systemImage: granted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 11))
-                    .foregroundStyle(granted ? FD.lime : FD.label)
-            }
+            .padding(.top, 16)
             HStack(spacing: 8) {
-                FDGhostButton(title: "Not now", action: skip)
+                FDGhostButton(title: skipTitle, action: skip)
                 FDPrimaryButton(title: enableTitle, action: enable)
                     .keyboardShortcut(.defaultAction)
             }
+            .padding(.top, 26)
+            Text(privacy).font(.system(size: 10)).foregroundStyle(FD.label)
+                .padding(.top, 14)
             Spacer()
         }
     }
