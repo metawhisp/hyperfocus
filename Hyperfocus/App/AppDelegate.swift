@@ -7,6 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         registerBundledFonts()   // segmented DSEG display font (must precede any UI, incl. snapshots)
         #if DEBUG
+        if ProcessInfo.processInfo.environment["HF_ORB_PREVIEW_LIVE"] == "1" {
+            OrbLivePreviewWindow.show()   // animated design gallery; app stays alive until closed
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_ORB_PREVIEW"] == "1" {
             OrbPreviewRenderer.render()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }

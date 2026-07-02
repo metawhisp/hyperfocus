@@ -337,11 +337,31 @@ struct OrbGalleryView: View {
     }
 }
 
+/// One frame (t = 0.9) of each inner-light variant, on + off — for pre-flight composition checks.
+struct InnerLitStillsView: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 22) {
+            ForEach(0..<4, id: \.self) { i in
+                VStack(spacing: 8) {
+                    InnerLitOrb(variant: i + 1, on: true, t: 0.9)
+                    InnerLitOrb(variant: i + 1, on: false, t: 0.9)
+                    Text("V\(i + 1)").font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.055, green: 0.065, blue: 0.09))
+    }
+}
+
 @MainActor
 enum OrbPreviewRenderer {
     static func render() {
         write(OrbGalleryView(), name: "orb_gallery.png")
         write(PlasmaVariantsGalleryView(), name: "orb_plasma_variants.png")
+        // Static check frames of the inner-light variants (one animation phase).
+        write(InnerLitStillsView(), name: "orb_inner_stills.png")
     }
 
     private static func write(_ view: some View, name: String) {
