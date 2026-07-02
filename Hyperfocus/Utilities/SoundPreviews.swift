@@ -18,7 +18,7 @@ struct SoundPartial {
 }
 
 enum SoundCandidate: String, CaseIterable, Identifiable {
-    case humTide, humSweep, droneChorus, droneFifth, warmHybrid
+    case humTide, humSweep, droneChorus, droneFifth, warmHybrid, lockIn
     var id: String { rawValue }
 
     var title: String {
@@ -28,6 +28,7 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
         case .droneChorus: return "DRONE A · CHORUS"
         case .droneFifth: return "DRONE B · FIFTH"
         case .warmHybrid: return "WARM HUM · HYBRID"
+        case .lockIn: return "LOCK IN · PROTOCOL"
         }
     }
 
@@ -38,11 +39,13 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
         case .droneChorus: return "аккорд A2, каждый голос расстраивается сам по себе"
         case .droneFifth: return "тоника + квинта, квинта медленно гуляет ±30 центов"
         case .warmHybrid: return "55/110/165 Гц — между хамом и дроном"
+        case .lockIn: return "brown-подложка + Beta 16 Гц + Gamma 40 Гц, фазы (наушники); в превью цикл 90 сек"
         }
     }
 
     var partials: [SoundPartial] {
         switch self {
+        case .lockIn: return []   // custom layered render, not the partial engine
         case .humTide: return [
             .init(baseHz: 50, amp: 1.0, glideDepth: 0.02, glideRate: 0.020, glidePhase: 0.0),
             .init(baseHz: 100, amp: 0.6, glideDepth: 0.02, glideRate: 0.020, glidePhase: 0.0),
@@ -79,6 +82,7 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
         case .droneChorus: return 0.416        // RMS .481, tremolo .9 → ×.416
         case .droneFifth: return 0.377         // RMS .53, tremolo .9 → ×.377
         case .warmHybrid: return 0.283         // RMS .70 → ×.257, ×1.10 sub boost ≈ .283
+        case .lockIn: return 1.0               // per-layer amps already RMS-targeted ≈ .18 combined
         }
     }
 
@@ -90,11 +94,46 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
     }
 }
 
+/// LOCK IN phase schedule (adapted from the "ADHD Lock In" protocol structure: stabilize →
+/// reduce distraction → flow → sustain). `u` is normalized 0…1 over the cycle/session.
+enum LockInPhase {
+    case stabilize, beta, flow, sustain
+
+    static func at(_ u: Double) -> LockInPhase {
+        switch u {
+        case ..<0.11: return .stabilize
+        case ..<0.39: return .beta
+        case ..<0.72: return .flow
+        default: return .sustain
+        }
+    }
+
+    var name: String {
+        switch self {
+        case .stabilize: return "STABILIZING — только подложка"
+        case .beta: return "BETA 16 Hz — снижаем отвлечения"
+        case .flow: return "BETA+GAMMA — фокус-флоу"
+        case .sustain: return "GAMMA 40 Hz — удержание"
+        }
+    }
+
+    /// Layer gains (bed, beta, gamma) with soft transitions handled by the caller's smoothing.
+    var mix: (bed: Float, beta: Float, gamma: Float) {
+        switch self {
+        case .stabilize: return (1.0, 0.0, 0.0)
+        case .beta: return (1.0, 1.0, 0.0)
+        case .flow: return (0.9, 0.8, 1.0)
+        case .sustain: return (0.9, 0.35, 1.0)
+        }
+    }
+}
+
 // MARK: Engine — phase-continuous glides, RMS meter, whisper ceiling
 
 final class SoundLabEngine: ObservableObject {
     @Published var playing: SoundCandidate?
     @Published var levelDB: Double?          // live dBFS of the rendered output
+    @Published var lockInPhaseName: String?  // live phase label while auditioning LOCK IN
 
     private let engine = AVAudioEngine()
     private var node: AVAudioSourceNode?
@@ -106,6 +145,10 @@ final class SoundLabEngine: ObservableObject {
     private var sampleIndex: Double = 0
     private var rmsAccum: Double = 0
     private var rmsCount: Int = 0
+    // lock-in state
+    private var brown: Float = 0
+    private var bedLP: Float = 0
+    private var mixBed: Float = 0, mixBeta: Float = 0, mixGamma: Float = 0   // smoothed layer gains
 
     func play(_ c: SoundCandidate, volume: Float) {
         targetGain = volume
@@ -138,35 +181,73 @@ final class SoundLabEngine: ObservableObject {
             let scale = self.candidate.masterScale
             let hasTremolo = self.candidate.tremolo
 
+            let isLockIn = self.candidate == .lockIn
             for frame in 0..<Int(frameCount) {
                 if self.gain < self.targetGain { self.gain = min(self.targetGain, self.gain + fadeStep) }
                 if self.gain > self.targetGain { self.gain = max(self.targetGain, self.gain - fadeStep) }
                 self.sampleIndex += 1
                 let t = self.sampleIndex / sr
 
-                var s: Float = 0
-                for (i, p) in partials.enumerated() {
-                    // Phase-continuous glide: instantaneous frequency wanders slowly around base.
-                    let f = p.baseHz * (1 + p.glideDepth * sin(twoPi * p.glideRate * t + p.glidePhase))
-                    self.phases[i] += twoPi * f / sr
-                    if self.phases[i] > twoPi { self.phases[i] -= twoPi }
-                    s += p.amp * Float(sin(self.phases[i]))
-                }
-                if hasTremolo { s *= Float(0.9 + 0.1 * sin(twoPi * 0.15 * t)) }
-                s *= scale
+                var left: Float = 0
+                var right: Float = 0
 
-                let out = max(-1, min(1, s * self.gain))
-                for buf in buffers {
-                    buf.mData!.assumingMemoryBound(to: Float.self)[frame] = out
+                if isLockIn {
+                    // 90 s audition cycle through the protocol phases; layer gains smoothed (~1 s).
+                    let u = (t.truncatingRemainder(dividingBy: 90)) / 90
+                    let target = LockInPhase.at(u).mix
+                    let k: Float = 1.0 / Float(sr)
+                    self.mixBed += (target.bed - self.mixBed) * k
+                    self.mixBeta += (target.beta - self.mixBeta) * k
+                    self.mixGamma += (target.gamma - self.mixGamma) * k
+
+                    // Bed: dark low-passed brown, shared by both ears.
+                    self.brown += (Float.random(in: -1...1) - self.brown * 0.02)
+                    self.bedLP += (self.brown * 1.3 - self.bedLP) * 0.06
+                    let bed = self.bedLP * 0.33 * self.mixBed        // ≈ RMS .10 contribution
+
+                    // Beta 16 Hz pair: 100 L / 116 R. Gamma 40 Hz pair: 220 L / 260 R.
+                    self.phases[0] += twoPi * 100 / sr
+                    self.phases[1] += twoPi * 116 / sr
+                    self.phases[2] += twoPi * 220 / sr
+                    self.phases[3] += twoPi * 260 / sr
+                    for i in 0..<4 where self.phases[i] > twoPi { self.phases[i] -= twoPi }
+
+                    left = bed + Float(sin(self.phases[0])) * 0.16 * self.mixBeta
+                        + Float(sin(self.phases[2])) * 0.13 * self.mixGamma
+                    right = bed + Float(sin(self.phases[1])) * 0.16 * self.mixBeta
+                        + Float(sin(self.phases[3])) * 0.13 * self.mixGamma
+                } else {
+                    var s: Float = 0
+                    for (i, p) in partials.enumerated() {
+                        // Phase-continuous glide: instantaneous frequency wanders slowly around base.
+                        let f = p.baseHz * (1 + p.glideDepth * sin(twoPi * p.glideRate * t + p.glidePhase))
+                        self.phases[i] += twoPi * f / sr
+                        if self.phases[i] > twoPi { self.phases[i] -= twoPi }
+                        s += p.amp * Float(sin(self.phases[i]))
+                    }
+                    if hasTremolo { s *= Float(0.9 + 0.1 * sin(twoPi * 0.15 * t)) }
+                    s *= scale
+                    left = s; right = s
                 }
 
-                self.rmsAccum += Double(out * out)
+                let outL = max(-1, min(1, left * self.gain))
+                let outR = max(-1, min(1, right * self.gain))
+                for (ch, buf) in buffers.enumerated() {
+                    buf.mData!.assumingMemoryBound(to: Float.self)[frame] = ch == 0 ? outL : outR
+                }
+
+                self.rmsAccum += Double(outL * outL + outR * outR) / 2
                 self.rmsCount += 1
                 if self.rmsCount >= meterWindow {
                     let rms = (self.rmsAccum / Double(self.rmsCount)).squareRoot()
                     let db = rms > 0 ? 20 * log10(rms) : -120
+                    let phaseName: String? = isLockIn
+                        ? LockInPhase.at((t.truncatingRemainder(dividingBy: 90)) / 90).name : nil
                     self.rmsAccum = 0; self.rmsCount = 0
-                    DispatchQueue.main.async { self.levelDB = db }
+                    DispatchQueue.main.async {
+                        self.levelDB = db
+                        self.lockInPhaseName = phaseName
+                    }
                 }
             }
             return noErr
@@ -241,7 +322,11 @@ struct SoundGalleryView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(c.title).font(FD.matrix(13))
                         .foregroundStyle(active ? FD.lime : .white)
-                    Text(c.detail).font(.system(size: 11)).foregroundStyle(FD.label)
+                    if active, c == .lockIn, let phase = lab.lockInPhaseName {
+                        Text(phase).font(.system(size: 11, weight: .semibold)).foregroundStyle(FD.amber)
+                    } else {
+                        Text(c.detail).font(.system(size: 11)).foregroundStyle(FD.label)
+                    }
                 }
                 Spacer()
             }
