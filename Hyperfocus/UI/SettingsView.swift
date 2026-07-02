@@ -42,11 +42,16 @@ struct SettingsView: View {
                        isOn: boolBinding({ settings.allowSessionsWithoutCamera }, { settings.allowSessionsWithoutCamera = $0 }))
             }
 
-            Section("Camera") {
+            Section("Camera & screen") {
                 Toggle("Use camera for presence check",
                        isOn: boolBinding({ settings.useCameraForPresence }, { settings.useCameraForPresence = $0 }))
+                Toggle("Analyze screen for distractions",
+                       isOn: boolBinding({ settings.useScreenAnalysis }, { settings.useScreenAnalysis = $0 }))
                 Button("Open System camera permissions…", action: onOpenSystemCamera)
                 Text(Constants.Copy.privacyCopy)
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Screen analysis reads on-screen text locally to spot distractions. Frames are never recorded or uploaded.")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

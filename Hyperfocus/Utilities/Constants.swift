@@ -29,6 +29,7 @@ enum Constants {
         static let recoverySeconds = "hf.recoverySeconds"
         static let allowSessionsWithoutCamera = "hf.allowSessionsWithoutCamera"
         static let useCameraForPresence = "hf.useCameraForPresence"
+        static let useScreenAnalysis = "hf.useScreenAnalysis"
         static let voicePromptsEnabled = "hf.voicePromptsEnabled"
         static let alarmEnabled = "hf.alarmEnabled"
         static let soundVolume = "hf.soundVolume"
@@ -56,6 +57,7 @@ enum Constants {
         static let recoverySeconds = Timing.recoverySeconds
         static let allowSessionsWithoutCamera = true
         static let useCameraForPresence = true
+        static let useScreenAnalysis = true       // effective only when Screen Recording is granted
         static let voicePromptsEnabled = true
         static let alarmEnabled = true
         static let soundVolume: Double = 0.5
@@ -149,6 +151,17 @@ enum Constants {
             case .cinematic: return .cinematic
             }
         }
+    }
+
+    // MARK: Screen analysis (canon §13 #23) — local distraction detection via on-screen text
+
+    enum Screen {
+        static let analysisInterval: Double = 12      // seconds between local screen captures during a session
+        static let captureScale = 2                   // downscale factor for the analyzed frame
+        static let distractionKeywords = [
+            "youtube", "tiktok", "instagram", "twitter", " x.com", "reddit", "netflix",
+            "twitch", "facebook", "for you", "shorts", "tweet", "9gag", "pornhub",
+        ]
     }
 
     // MARK: Storage (canon §7)

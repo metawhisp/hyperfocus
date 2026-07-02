@@ -79,6 +79,11 @@ final class SettingsStore {
         set { defaults.set(newValue, forKey: Constants.SettingsKeys.useCameraForPresence) }
     }
 
+    var useScreenAnalysis: Bool {
+        get { bool(Constants.SettingsKeys.useScreenAnalysis, Constants.Defaults.useScreenAnalysis) }
+        set { defaults.set(newValue, forKey: Constants.SettingsKeys.useScreenAnalysis) }
+    }
+
     // MARK: Sound
 
     var voicePromptsEnabled: Bool {

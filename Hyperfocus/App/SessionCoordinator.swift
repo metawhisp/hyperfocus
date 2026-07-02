@@ -20,6 +20,7 @@ final class SessionCoordinator {
     private let simulated = SimulatedPresenceService()
     private let permission = CameraPermissionService()
     private let screenPermission = ScreenAnalysisPermissionService()
+    private let screenAnalysis = ScreenAnalysisService()
     private var presence: PresenceDetecting?
     private let timer = SessionTimer()
 
@@ -34,6 +35,7 @@ final class SessionCoordinator {
     private var hudPanel: NSPanel?
     private var awayPanel: NSPanel?
     private var completionPanel: NSPanel?
+    private var nudgePanel: NSPanel?
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
     private var onboardingWindow: NSWindow?
@@ -112,9 +114,9 @@ final class SessionCoordinator {
         case .showCountdown:            showCountdown()
         case .dismissCountdown:         dismiss(&countdownWindow)
         case .setAura(let state):       aura.setState(state)
-        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD()
+        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis()
         case .pauseTimer, .resumeTimer: break   // SessionTimer is a continuous heartbeat; the reducer accounts per state
-        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel)
+        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel)
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil
@@ -158,6 +160,27 @@ final class SessionCoordinator {
 
     private func beginPresence(warmup: Bool) {
         if warmup { presence?.startWarmup() } else { presence?.startDetection() }
+    }
+
+    // MARK: Screen analysis (local distraction detection)
+
+    private func startScreenAnalysis() {
+        guard settings.useScreenAnalysis else { return }
+        screenAnalysis.onDistraction = { [weak self] _ in self?.showNudge() }
+        screenAnalysis.start()   // no-op unless Screen Recording is authorized
+    }
+
+    private func showNudge() {
+        guard let app = appState, nudgePanel == nil else { return }
+        let mission = app.context.config?.mission ?? "your task"
+        let panel = makeCardPanel(NudgeView(mission: mission), app: app, level: .floating)
+        placeNearOrb(panel)
+        nudgePanel = panel
+        panel.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            self?.nudgePanel?.orderOut(nil)
+            self?.nudgePanel = nil
+        }
     }
 
     private func alarmVolume() -> Float {

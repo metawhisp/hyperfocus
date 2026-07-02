@@ -40,7 +40,7 @@ struct OnboardingView: View {
         case 1: text(Constants.Copy.onboarding2Title, Constants.Copy.onboarding2Text)
         case 2: text(Constants.Copy.onboarding3Title, Constants.Copy.onboarding3Text, granted: cameraGranted)
         case 3: text("Screen analysis",
-                     "Hyperfocus can use local screen access to help you stay on your task. Processed on your Mac — never recorded or uploaded.",
+                     "During a session Hyperfocus can glance at your screen locally to notice when a known distraction is open, and gently nudge you back. Processed on your Mac — never recorded or uploaded.",
                      granted: screenGranted)
         case 4: text(Constants.Copy.onboarding4Title, Constants.Copy.onboarding4Text)
         default: text("You're ready", "One task. One session.")
