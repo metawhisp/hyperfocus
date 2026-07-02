@@ -39,7 +39,7 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
         case .droneChorus: return "аккорд A2, каждый голос расстраивается сам по себе"
         case .droneFifth: return "тоника + квинта, квинта медленно гуляет ±30 центов"
         case .warmHybrid: return "55/110/165 Гц — между хамом и дроном"
-        case .lockIn: return "brown-подложка + Beta 16 Гц + Gamma 40 Гц, фазы (наушники); в превью цикл 90 сек"
+        case .lockIn: return "по спектру реального трека: дрон A/E + гамма-пара 220L/260R, 3 секции; цикл 90 сек"
         }
     }
 
@@ -94,38 +94,71 @@ enum SoundCandidate: String, CaseIterable, Identifiable {
     }
 }
 
-/// LOCK IN phase schedule (adapted from the "ADHD Lock In" protocol structure: stabilize →
-/// reduce distraction → flow → sustain). `u` is normalized 0…1 over the cycle/session.
+/// LOCK IN — reverse-engineered from FFT analysis of the real "ADHD Lock In" track (this session):
+/// an A/E ambient drone with a musical 40 Hz gamma pair (A3 220 left / ~C4 260 right), interchannel
+/// micro-detunes (1–3 Hz shimmer), a dark 60–240 Hz noise bed, and chord sections that change over
+/// time (measured at 1/45/95 min; the closer quiets by ~4 dB). We synthesize the recipe, not the file.
 enum LockInPhase {
-    case stabilize, beta, flow, sustain
+    case stabilize, s1, s2, s3
 
     static func at(_ u: Double) -> LockInPhase {
         switch u {
-        case ..<0.11: return .stabilize
-        case ..<0.39: return .beta
-        case ..<0.72: return .flow
-        default: return .sustain
+        case ..<0.08: return .stabilize
+        case ..<0.40: return .s1
+        case ..<0.75: return .s2
+        default: return .s3
         }
     }
 
     var name: String {
         switch self {
-        case .stabilize: return "STABILIZING — только подложка"
-        case .beta: return "BETA 16 Hz — снижаем отвлечения"
-        case .flow: return "BETA+GAMMA — фокус-флоу"
-        case .sustain: return "GAMMA 40 Hz — удержание"
+        case .stabilize: return "ВХОД — только подложка"
+        case .s1: return "СЕКЦИЯ 1 — якорь E2/A2, шиммер 1–3 Гц"
+        case .s2: return "СЕКЦИЯ 2 — гамма-пара 220L/260R"
+        case .s3: return "СЕКЦИЯ 3 — удержание, на 4 дБ тише"
         }
     }
 
-    /// Layer gains (bed, beta, gamma) with soft transitions handled by the caller's smoothing.
-    var mix: (bed: Float, beta: Float, gamma: Float) {
+    var index: Int {   // -1 = bed only
         switch self {
-        case .stabilize: return (1.0, 0.0, 0.0)
-        case .beta: return (1.0, 1.0, 0.0)
-        case .flow: return (0.9, 0.8, 1.0)
-        case .sustain: return (0.9, 0.35, 1.0)
+        case .stabilize: return -1
+        case .s1: return 0
+        case .s2: return 1
+        case .s3: return 2
         }
     }
+}
+
+/// Tone bank with per-section target amps (L/R separately), from the measured peak sets.
+struct LockInTone {
+    let freq: Double
+    let ampL: [Float]   // [s1, s2, s3]
+    let ampR: [Float]
+}
+
+enum LockInBank {
+    static let toneScale: Float = 0.28
+    static let bedGain: [Float] = [0.9, 0.9, 0.72]      // s3 ≈ −4 dB in the source
+
+    static let tones: [LockInTone] = [
+        LockInTone(freq: 82.4, ampL: [0.50, 0.50, 0.00], ampR: [0.50, 0.50, 0.00]),   // E2 anchor
+        LockInTone(freq: 110.0, ampL: [0.35, 0.00, 0.00], ampR: [0.00, 0.00, 0.00]),  // A2, left voice
+        LockInTone(freq: 185.7, ampL: [0.00, 0.00, 0.00], ampR: [0.30, 0.00, 0.00]),  // right voice
+        LockInTone(freq: 220.0, ampL: [0.45, 0.40, 0.00], ampR: [0.00, 0.00, 0.00]),  // A3 left
+        LockInTone(freq: 219.0, ampL: [0.00, 0.00, 0.00], ampR: [0.35, 0.00, 0.00]),  // 1 Hz beat vs 220L
+        LockInTone(freq: 260.0, ampL: [0.00, 0.00, 0.00], ampR: [0.00, 0.40, 0.35]),  // gamma pair right
+        LockInTone(freq: 138.3, ampL: [0.00, 0.40, 0.00], ampR: [0.00, 0.40, 0.00]),  // C#3, section 2
+        LockInTone(freq: 207.0, ampL: [0.00, 0.35, 0.00], ampR: [0.00, 0.00, 0.00]),
+        LockInTone(freq: 207.7, ampL: [0.00, 0.00, 0.00], ampR: [0.00, 0.35, 0.00]),  // 0.7 Hz detune
+        LockInTone(freq: 293.7, ampL: [0.25, 0.00, 0.00], ampR: [0.25, 0.00, 0.00]),  // D4
+        LockInTone(freq: 438.5, ampL: [0.12, 0.00, 0.10], ampR: [0.12, 0.00, 0.10]),  // A4 shimmer
+        LockInTone(freq: 441.5, ampL: [0.12, 0.00, 0.10], ampR: [0.12, 0.00, 0.10]),  // +3 Hz beat
+        LockInTone(freq: 415.3, ampL: [0.00, 0.12, 0.00], ampR: [0.00, 0.00, 0.00]),  // G#4 s2 (L)
+        LockInTone(freq: 417.3, ampL: [0.00, 0.00, 0.00], ampR: [0.00, 0.12, 0.00]),  // 2 Hz beat (R)
+        LockInTone(freq: 192.3, ampL: [0.00, 0.00, 0.45], ampR: [0.00, 0.00, 0.45]),  // s3 set
+        LockInTone(freq: 144.9, ampL: [0.00, 0.00, 0.35], ampR: [0.00, 0.00, 0.00]),
+        LockInTone(freq: 284.8, ampL: [0.00, 0.00, 0.25], ampR: [0.00, 0.00, 0.25]),
+    ]
 }
 
 // MARK: Engine — phase-continuous glides, RMS meter, whisper ceiling
@@ -148,7 +181,11 @@ final class SoundLabEngine: ObservableObject {
     // lock-in state
     private var brown: Float = 0
     private var bedLP: Float = 0
-    private var mixBed: Float = 0, mixBeta: Float = 0, mixGamma: Float = 0   // smoothed layer gains
+    private var bedLP2: Float = 0
+    private var mixBed: Float = 0
+    private var tonePhases = [Double](repeating: 0, count: LockInBank.tones.count)
+    private var toneGL = [Float](repeating: 0, count: LockInBank.tones.count)   // smoothed L gains
+    private var toneGR = [Float](repeating: 0, count: LockInBank.tones.count)
 
     func play(_ c: SoundCandidate, volume: Float) {
         targetGain = volume
@@ -192,30 +229,34 @@ final class SoundLabEngine: ObservableObject {
                 var right: Float = 0
 
                 if isLockIn {
-                    // 90 s audition cycle through the protocol phases; layer gains smoothed (~1 s).
+                    // 90 s audition cycle through the measured sections; ~3 s smoothed crossfades.
                     let u = (t.truncatingRemainder(dividingBy: 90)) / 90
-                    let target = LockInPhase.at(u).mix
-                    let k: Float = 1.0 / Float(sr)
-                    self.mixBed += (target.bed - self.mixBed) * k
-                    self.mixBeta += (target.beta - self.mixBeta) * k
-                    self.mixGamma += (target.gamma - self.mixGamma) * k
+                    let section = LockInPhase.at(u).index
+                    let k: Float = 0.33 / Float(sr)
 
-                    // Bed: dark low-passed brown, shared by both ears.
+                    // Bed: dark two-stage low-passed brown (60–240 Hz plateau per the source).
+                    let bedTarget: Float = section >= 0 ? LockInBank.bedGain[section] : 1.0
+                    self.mixBed += (bedTarget - self.mixBed) * k
                     self.brown += (Float.random(in: -1...1) - self.brown * 0.02)
-                    self.bedLP += (self.brown * 1.3 - self.bedLP) * 0.06
-                    let bed = self.bedLP * 0.33 * self.mixBed        // ≈ RMS .10 contribution
+                    self.bedLP += (self.brown * 1.3 - self.bedLP) * 0.10
+                    self.bedLP2 += (self.bedLP - self.bedLP2) * 0.25
+                    let bed = self.bedLP2 * 0.36 * self.mixBed       // ≈ RMS .10 contribution
 
-                    // Beta 16 Hz pair: 100 L / 116 R. Gamma 40 Hz pair: 220 L / 260 R.
-                    self.phases[0] += twoPi * 100 / sr
-                    self.phases[1] += twoPi * 116 / sr
-                    self.phases[2] += twoPi * 220 / sr
-                    self.phases[3] += twoPi * 260 / sr
-                    for i in 0..<4 where self.phases[i] > twoPi { self.phases[i] -= twoPi }
-
-                    left = bed + Float(sin(self.phases[0])) * 0.16 * self.mixBeta
-                        + Float(sin(self.phases[2])) * 0.13 * self.mixGamma
-                    right = bed + Float(sin(self.phases[1])) * 0.16 * self.mixBeta
-                        + Float(sin(self.phases[3])) * 0.13 * self.mixGamma
+                    left = bed
+                    right = bed
+                    for (i, tone) in LockInBank.tones.enumerated() {
+                        let tL: Float = section >= 0 ? tone.ampL[section] : 0
+                        let tR: Float = section >= 0 ? tone.ampR[section] : 0
+                        self.toneGL[i] += (tL - self.toneGL[i]) * k
+                        self.toneGR[i] += (tR - self.toneGR[i]) * k
+                        if self.toneGL[i] > 0.0005 || self.toneGR[i] > 0.0005 {
+                            self.tonePhases[i] += twoPi * tone.freq / sr
+                            if self.tonePhases[i] > twoPi { self.tonePhases[i] -= twoPi }
+                            let s = Float(sin(self.tonePhases[i])) * LockInBank.toneScale
+                            left += s * self.toneGL[i]
+                            right += s * self.toneGR[i]
+                        }
+                    }
                 } else {
                     var s: Float = 0
                     for (i, p) in partials.enumerated() {
