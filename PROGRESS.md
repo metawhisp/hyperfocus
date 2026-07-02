@@ -5,10 +5,10 @@
 
 ## Current phase
 
-**FLIGHT DECK shipped end-to-end (canon #25–#29): orb v4 morph, uniform aura A1, redesigned session screens, achievements engine, focus soundscape, context wand, onboarding v3 in FD design.** Remaining: user walkthrough (incl. real-camera attention test via HFCAM logs) and Settings deep-restyle if requested.
-
-The app builds, launches as a menu-bar agent (no Dock icon), and runs without crashing.
-The tested reducer/timer/stores are wired into real windows and services end to end.
+**FLIGHT DECK shipped end-to-end + generated focus sound (canon #25–#29).** Focus sound solved:
+our own Ambient Pad synth (PadSynth.swift) is the production default, 12 s perceptual swell on all
+modes. Open: user picks a countdown intro variant (HF_COUNTDOWN_PREVIEW gallery A–D) → apply to
+CountdownOverlayView; user walkthrough (real-camera attention test via HFCAM logs).
 
 ## What exists
 
