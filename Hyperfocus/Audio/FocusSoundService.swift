@@ -24,28 +24,35 @@ final class FocusSoundService {
     private var sourceNode: AVAudioSourceNode?
     private var brownL: Float = 0
     private var brownR: Float = 0
+    private var lpL: Float = 0        // one-pole low-pass state — darkens the noise into a soft rumble
+    private var lpR: Float = 0
     private var phaseL: Double = 0
     private var phaseR: Double = 0
     private var gain: Float = 0
-    private var targetGain: Float = 0.3
+    private var targetGain: Float = 0.1
     private var mode: FocusSoundMode = .brown
 
+    /// Background sound must stay a whisper — hard ceiling on the effective gain regardless of slider.
+    private let maxGain: Float = 0.22
+
     func start(mode: FocusSoundMode, volume: Float) {
+        let clamped = min(volume, 1) * maxGain                   // slider 0…1 → whisper range
         guard !isPlaying else {
             self.mode = mode
-            targetGain = volume
+            targetGain = clamped
             return
         }
         self.mode = mode
-        targetGain = volume
+        targetGain = clamped
         gain = 0
-        brownL = 0; brownR = 0; phaseL = 0; phaseR = 0
+        brownL = 0; brownR = 0; lpL = 0; lpR = 0; phaseL = 0; phaseR = 0
 
         let format = engine.outputNode.inputFormat(forBus: 0)
         let sampleRate = format.sampleRate > 0 ? format.sampleRate : 44_100
-        let gainStep = Float(1.0 / (1.5 * sampleRate))          // 1.5 s fade-in
+        let gainStep = Float(1.0 / (4.0 * sampleRate))          // 4 s creep-in — appearance unnoticeable
         let leftHz = 200.0, rightHz = 240.0                     // Δ40 Hz gamma-band beat
         let twoPi = 2.0 * Double.pi
+        let lpK: Float = 0.06                                    // ~550 Hz cutoff → dark, no hiss
 
         let node = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
             guard let self else { return noErr }
@@ -58,21 +65,24 @@ final class FocusSoundService {
                 var right: Float = 0
                 switch self.mode {
                 case .brown:
-                    // Independent brown noise per channel — wide, soft bed.
+                    // Independent brown noise per channel, then low-passed into a dark rumble —
+                    // a barely-there presence, not hiss.
                     self.brownL += (Float.random(in: -1...1) - self.brownL * 0.02)
                     self.brownR += (Float.random(in: -1...1) - self.brownR * 0.02)
-                    left = self.brownL * 2.8
-                    right = self.brownR * 2.8
+                    self.lpL += (self.brownL * 1.3 - self.lpL) * lpK
+                    self.lpR += (self.brownR * 1.3 - self.lpR) * lpK
+                    left = self.lpL
+                    right = self.lpR
                 case .binaural:
-                    // Pure sine pair; a faint shared brown bed keeps it from feeling sterile.
+                    // Quiet sine pair; a whisper of low-passed brown keeps it from feeling sterile.
                     self.phaseL += twoPi * leftHz / sampleRate
                     self.phaseR += twoPi * rightHz / sampleRate
                     if self.phaseL > twoPi { self.phaseL -= twoPi }
                     if self.phaseR > twoPi { self.phaseR -= twoPi }
                     self.brownL += (Float.random(in: -1...1) - self.brownL * 0.02)
-                    let bed = self.brownL * 0.5
-                    left = Float(sin(self.phaseL)) * 0.55 + bed * 0.25
-                    right = Float(sin(self.phaseR)) * 0.55 + bed * 0.25
+                    self.lpL += (self.brownL - self.lpL) * lpK
+                    left = Float(sin(self.phaseL)) * 0.22 + self.lpL * 0.10
+                    right = Float(sin(self.phaseR)) * 0.22 + self.lpL * 0.10
                 }
                 left = max(-1, min(1, left * self.gain))
                 right = max(-1, min(1, right * self.gain))
