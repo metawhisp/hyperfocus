@@ -38,6 +38,7 @@ enum Constants {
         static let focusSoundEnabled = "hf.focusSoundEnabled"
         static let focusSoundMode = "hf.focusSoundMode"
         static let focusSoundVolume = "hf.focusSoundVolume"
+        static let focusSoundFile = "hf.focusSoundFile"      // filename inside App Support/Hyperfocus/FocusSound
         static let auraIntensity = "hf.auraIntensity"
         static let auraThickness = "hf.auraThickness"
         static let reduceMotion = "hf.reduceMotion"

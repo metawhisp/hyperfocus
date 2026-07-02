@@ -135,6 +135,12 @@ final class SettingsStore {
         set { defaults.set(newValue, forKey: Constants.SettingsKeys.focusSoundVolume) }
     }
 
+    /// Filename of the user's custom focus audio inside App Support/Hyperfocus/FocusSound.
+    var focusSoundFile: String? {
+        get { defaults.string(forKey: Constants.SettingsKeys.focusSoundFile) }
+        set { defaults.set(newValue, forKey: Constants.SettingsKeys.focusSoundFile) }
+    }
+
     // MARK: Visual
 
     var auraIntensity: Double {

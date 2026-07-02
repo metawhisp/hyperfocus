@@ -8,11 +8,12 @@
 import AVFoundation
 
 enum FocusSoundMode: String, Codable, CaseIterable {
-    case brown, binaural
+    case brown, binaural, custom
     var displayName: String {
         switch self {
         case .brown: return "Deep Noise"
         case .binaural: return "Focus Beats 40 Hz"
+        case .custom: return "Custom Audio"
         }
     }
 }
@@ -20,6 +21,12 @@ enum FocusSoundMode: String, Codable, CaseIterable {
 final class FocusSoundService {
     private(set) var isPlaying = false
 
+    /// Directory for user-picked custom audio (inside the sandbox container — always readable).
+    static func customSoundDirectory() -> URL {
+        SessionStore.defaultDirectoryURL().appendingPathComponent("FocusSound", isDirectory: true)
+    }
+
+    private var player: AVAudioPlayer?
     private let engine = AVAudioEngine()
     private var sourceNode: AVAudioSourceNode?
     private var brownL: Float = 0
@@ -35,7 +42,11 @@ final class FocusSoundService {
     /// Background sound must stay a whisper — hard ceiling on the effective gain regardless of slider.
     private let maxGain: Float = 0.22
 
-    func start(mode: FocusSoundMode, volume: Float) {
+    func start(mode: FocusSoundMode, volume: Float, customFileURL: URL? = nil) {
+        if mode == .custom {
+            startCustom(volume: volume, url: customFileURL)
+            return
+        }
         let clamped = min(volume, 1) * maxGain                   // slider 0…1 → whisper range
         guard !isPlaying else {
             self.mode = mode
@@ -73,6 +84,8 @@ final class FocusSoundService {
                     self.lpR += (self.brownR * 1.3 - self.lpR) * lpK
                     left = self.lpL
                     right = self.lpR
+                case .custom:
+                    break   // custom mode never reaches the synth path (AVAudioPlayer handles it)
                 case .binaural:
                     // Quiet sine pair; a whisper of low-passed brown keeps it from feeling sterile.
                     self.phaseL += twoPi * leftHz / sampleRate
@@ -108,8 +121,36 @@ final class FocusSoundService {
         }
     }
 
+    /// User-picked audio: loops for the whole session, gentle 3 s fade-in, music-level ceiling.
+    private func startCustom(volume: Float, url: URL?) {
+        guard !isPlaying else {
+            player?.setVolume(min(volume, 1) * 0.6, fadeDuration: 0.5)
+            return
+        }
+        guard let url, let p = try? AVAudioPlayer(contentsOf: url) else {
+            NSLog("Hyperfocus: custom focus audio missing/unreadable — staying silent")
+            return
+        }
+        p.numberOfLoops = -1
+        p.volume = 0
+        p.prepareToPlay()
+        p.play()
+        p.setVolume(min(volume, 1) * 0.6, fadeDuration: 3.0)
+        player = p
+        isPlaying = true
+    }
+
     func stop() {
         guard isPlaying else { return }
+        if let p = player {
+            p.setVolume(0, fadeDuration: 0.3)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                p.stop()
+                if self?.player === p { self?.player = nil }
+            }
+            isPlaying = false
+            return
+        }
         engine.stop()
         cleanup()
     }

@@ -69,6 +69,16 @@ struct SettingsView: View {
                 LabeledContent("Focus sound volume") {
                     Slider(value: doubleBinding({ settings.focusSoundVolume }, { settings.focusSoundVolume = $0 }), in: 0...1).frame(width: 180)
                 }
+                if settings.focusSoundMode == .custom {
+                    LabeledContent("Audio file") {
+                        HStack(spacing: 8) {
+                            Text(settings.focusSoundFile ?? "none")
+                                .font(.system(size: 11)).foregroundStyle(.secondary)
+                                .lineLimit(1).truncationMode(.middle).frame(maxWidth: 160, alignment: .trailing)
+                            Button("Choose…") { chooseCustomAudio() }
+                        }
+                    }
+                }
                 Text("Focus Beats 40 Hz works with headphones (different tone per ear).")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 Toggle("Alarm sound", isOn: boolBinding({ settings.alarmEnabled }, { settings.alarmEnabled = $0 }))
@@ -101,6 +111,27 @@ struct SettingsView: View {
         .tint(FD.lime)                        // FLIGHT DECK accent on toggles/sliders/pickers
         .preferredColorScheme(.dark)
         .frame(width: 460, height: 560)
+    }
+
+    /// Copy the picked audio into the sandbox container so it stays readable across launches
+    /// (no security-scoped bookmarks needed).
+    private func chooseCustomAudio() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.audio]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let src = panel.url else { return }
+        let dir = FocusSoundService.customSoundDirectory()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dest = dir.appendingPathComponent(src.lastPathComponent)
+        try? FileManager.default.removeItem(at: dest)
+        do {
+            try FileManager.default.copyItem(at: src, to: dest)
+            settings.focusSoundFile = src.lastPathComponent
+            settings.focusSoundMode = .custom
+            app.objectWillChange.send()
+        } catch {
+            NSLog("Hyperfocus: failed to import custom audio: \(error.localizedDescription)")
+        }
     }
 
     // Bindings write through to SettingsStore (UserDefaults) and republish so the UI refreshes.

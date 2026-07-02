@@ -343,7 +343,13 @@ final class SessionCoordinator {
 
     private func startFocusSound() {
         guard settings.focusSoundEnabled else { return }
-        focusSound.start(mode: settings.focusSoundMode, volume: Float(settings.focusSoundVolume))
+        var customURL: URL?
+        if settings.focusSoundMode == .custom, let name = settings.focusSoundFile {
+            customURL = FocusSoundService.customSoundDirectory().appendingPathComponent(name)
+        }
+        focusSound.start(mode: settings.focusSoundMode,
+                         volume: Float(settings.focusSoundVolume),
+                         customFileURL: customURL)
     }
 
     private func alarmVolume() -> Float {
