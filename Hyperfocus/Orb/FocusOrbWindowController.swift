@@ -14,6 +14,7 @@ final class FocusOrbWindowController {
 
     var onClick: (() -> Void)?
     var onSecondaryClick: ((NSEvent) -> Void)?
+    var onLongPress: (() -> Void)?
 
     private var panel: KeyablePanel?
 
@@ -79,6 +80,7 @@ final class FocusOrbWindowController {
         let container = OrbContainerView(frame: CGRect(x: 0, y: 0, width: orbWindowSize, height: orbWindowSize))
         container.onClick = { [weak self] in self?.onClick?() }
         container.onSecondaryClick = { [weak self] e in self?.onSecondaryClick?(e) }
+        container.onLongPress = { [weak self] in self?.onLongPress?() }
         container.onDragEnded = { [weak self] in self?.snapAndSave() }
 
         let host = NSHostingView(rootView: FocusOrbView().environmentObject(app))
@@ -130,12 +132,18 @@ final class FocusOrbWindowController {
 private final class OrbContainerView: NSView {
     var onClick: (() -> Void)?
     var onSecondaryClick: ((NSEvent) -> Void)?
+    var onLongPress: (() -> Void)?
     var onDragEnded: (() -> Void)?
 
     private var mouseDownLocation: NSPoint = .zero
     private var windowOriginAtDown: CGPoint = .zero
     private var downTimestamp: TimeInterval = 0
     private var maxMovement: CGFloat = 0
+    private var longPressWork: DispatchWorkItem?
+    private var longPressed = false
+
+    // Simple UX for ADHD (canon §13 #18): short click → start; hold ≥ 0.5 s in place → Settings.
+    private let longPressDuration: TimeInterval = 0.5
 
     override func hitTest(_ point: NSPoint) -> NSView? { self }
 
@@ -144,6 +152,14 @@ private final class OrbContainerView: NSView {
         windowOriginAtDown = window?.frame.origin ?? .zero
         downTimestamp = event.timestamp
         maxMovement = 0
+        longPressed = false
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.maxMovement < Constants.Orb.clickMaxMovement else { return }
+            self.longPressed = true
+            self.onLongPress?()
+        }
+        longPressWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + longPressDuration, execute: work)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -151,10 +167,13 @@ private final class OrbContainerView: NSView {
         let dx = current.x - mouseDownLocation.x
         let dy = current.y - mouseDownLocation.y
         maxMovement = max(maxMovement, hypot(dx, dy))
+        if maxMovement >= Constants.Orb.clickMaxMovement { longPressWork?.cancel() }
         window?.setFrameOrigin(CGPoint(x: windowOriginAtDown.x + dx, y: windowOriginAtDown.y + dy))
     }
 
     override func mouseUp(with event: NSEvent) {
+        longPressWork?.cancel()
+        if longPressed { longPressed = false; return }   // Settings already opened on hold
         let duration = event.timestamp - downTimestamp
         if maxMovement < Constants.Orb.clickMaxMovement && duration < Constants.Orb.clickMaxDuration {
             onClick?()

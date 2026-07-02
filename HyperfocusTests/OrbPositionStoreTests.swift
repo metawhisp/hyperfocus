@@ -46,8 +46,8 @@ final class OrbPositionStoreTests: XCTestCase {
         XCTAssertNil(settings.orbPosition)
         let expected = store.defaultPosition(in: bounds)
         XCTAssertEqual(store.load(visibleBounds: bounds), expected)
-        // default is bottom-right with an 8 pt margin (canon §8)
+        // default is top-right with an 8 pt margin (canon §8, §13 #17)
         XCTAssertEqual(expected.x, bounds.maxX - settings.orbSize - Constants.Orb.edgeMargin)
-        XCTAssertEqual(expected.y, bounds.minY + Constants.Orb.edgeMargin)
+        XCTAssertEqual(expected.y, bounds.maxY - settings.orbSize - Constants.Orb.edgeMargin)
     }
 }

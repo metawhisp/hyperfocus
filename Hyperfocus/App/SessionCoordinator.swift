@@ -55,6 +55,7 @@ final class SessionCoordinator {
     func attach(_ appState: AppState) {
         self.appState = appState
         orb.onClick = { [weak self] in self?.appState?.send(.orbClicked) }
+        orb.onLongPress = { [weak self] in self?.showSettings() }        // hold → Settings (canon §13 #18)
         orb.onSecondaryClick = { [weak self] event in self?.showOrbQuickActions(event) }
     }
 

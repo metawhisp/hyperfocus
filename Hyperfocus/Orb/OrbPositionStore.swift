@@ -31,11 +31,12 @@ final class OrbPositionStore {
         settings.orbPosition = nil
     }
 
-    /// Default: bottom-right of the visible area, 8 pt margin, orb fully on-screen (canon §8).
+    /// Default: top-right of the visible area, 8 pt margin, orb fully on-screen (canon §8, §13 #17).
+    /// AppKit y grows upward, so "top" is `maxY - size - margin`.
     func defaultPosition(in bounds: CGRect) -> CGPoint {
         let size = settings.orbSize
         let margin = Constants.Orb.edgeMargin
-        return CGPoint(x: bounds.maxX - size - margin, y: bounds.minY + margin)
+        return CGPoint(x: bounds.maxX - size - margin, y: bounds.maxY - size - margin)
     }
 
     // MARK: Clamping

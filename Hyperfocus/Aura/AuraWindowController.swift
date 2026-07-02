@@ -20,8 +20,10 @@ final class AuraWindowController {
     func setState(_ state: AuraState) {
         hideWorkItem?.cancel()
         if windows.isEmpty { buildWindows() }
+        model.reduceMotion = settings.reduceMotion
 
-        let base = Constants.Aura.edgeMaxOpacity * settings.auraIntensity
+        // Faint by design (peripheral, "на 1%"): the living breathe/shimmer supplies presence, not brightness.
+        let base = Constants.Aura.edgeMaxOpacity * settings.auraIntensity * 0.6
         switch state {
         case .hidden:
             model.visible = false
@@ -60,11 +62,14 @@ final class AuraWindowController {
         guard frame.width > 0 else { return }
         let thickness = Constants.Aura.baseThickness * settings.auraThickness
 
+        // Left/right strips are inset vertically by `thickness` so they don't overlap the top/bottom
+        // strips at the corners (overlap was double-drawing and darkening the corners).
+        let sideHeight = max(0, frame.height - thickness * 2)
         let edges: [(AuraEdge, CGRect)] = [
             (.top,    CGRect(x: frame.minX, y: frame.maxY - thickness, width: frame.width, height: thickness)),
             (.bottom, CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: thickness)),
-            (.left,   CGRect(x: frame.minX, y: frame.minY, width: thickness, height: frame.height)),
-            (.right,  CGRect(x: frame.maxX - thickness, y: frame.minY, width: thickness, height: frame.height)),
+            (.left,   CGRect(x: frame.minX, y: frame.minY + thickness, width: thickness, height: sideHeight)),
+            (.right,  CGRect(x: frame.maxX - thickness, y: frame.minY + thickness, width: thickness, height: sideHeight)),
         ]
 
         for (edge, rect) in edges {

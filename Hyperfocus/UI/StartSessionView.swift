@@ -13,6 +13,7 @@ struct StartSessionView: View {
     @State private var isCustom = false
     @State private var customMinutes = ""
     @State private var intensity: Intensity = .cinematic
+    @FocusState private var missionFocused: Bool
 
     private var trimmedMission: String { mission.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -39,6 +40,7 @@ struct StartSessionView: View {
                 }
 
                 field(Constants.Copy.missionPlaceholder, text: $mission)
+                    .focused($missionFocused)
                 field(Constants.Copy.successPlaceholder, text: $successCondition)
 
                 durationRow
@@ -60,6 +62,7 @@ struct StartSessionView: View {
         .onAppear {
             selectedMinutes = app.settings.defaultDurationMinutes
             intensity = app.settings.defaultIntensity
+            DispatchQueue.main.async { missionFocused = true }   // type immediately, no extra click
         }
     }
 
