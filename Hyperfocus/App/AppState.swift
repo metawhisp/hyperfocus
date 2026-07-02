@@ -62,16 +62,19 @@ final class AppState: ObservableObject {
         return Array(minutes.prefix(3))
     }
 
-    /// Start a session immediately with a chosen duration (no card). Mission defaults to the last
-    /// session's mission, else "Focus". The showStartCard/hideStartCard pair is suppressed so the
-    /// Prepare card never flashes.
-    func quickStart(minutes: Int) {
+    /// Start a session immediately with a chosen duration (no card). Mission: explicit override
+    /// (onboarding first session) → last session's mission → "Focus". The showStartCard/
+    /// hideStartCard pair is suppressed so the Prepare card never flashes.
+    func quickStart(minutes: Int, mission overrideMission: String? = nil) {
         guard context.state == .idle else { return }
-        // Sanitize: a whitespace-only stored mission would be rejected by the reducer's T3 guard
+        // Sanitize: a whitespace-only mission would be rejected by the reducer's T3 guard
         // and strand the state machine in .preparing with no card visible.
+        let override = overrideMission?.trimmingCharacters(in: .whitespacesAndNewlines)
         let lastMission = store.all().last?.mission.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mission = (override?.isEmpty == false) ? override!
+            : ((lastMission?.isEmpty == false) ? lastMission! : "Focus")
         let config = SessionConfig(
-            mission: (lastMission?.isEmpty == false) ? lastMission! : "Focus",
+            mission: mission,
             successCondition: nil,
             plannedDurationSeconds: minutes * 60,
             intensity: settings.defaultIntensity,

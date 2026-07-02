@@ -102,15 +102,22 @@ final class SessionCoordinator {
     }
 
     func showOnboarding() {
+        let closeOnboarding: () -> Void = { [weak self] in
+            self?.settings.onboardingCompleted = true
+            self?.onboardingWindow?.orderOut(nil)
+            self?.onboardingWindow = nil
+        }
         let view = OnboardingView(
             requestCamera: { [weak self] done in self?.permission.requestAccess(completion: done) },
             requestScreen: { [weak self] done in self?.screenPermission.requestAccess(completion: done) },
-            onFinish: { [weak self] in
-                self?.settings.onboardingCompleted = true
-                self?.onboardingWindow?.orderOut(nil)
-                self?.onboardingWindow = nil
-            })
-        let w = makeStandardWindow(title: "Welcome to Hyperfocus", view: view)
+            onStartFirstSession: { [weak self] mission, minutes in
+                closeOnboarding()
+                // Activation moment: the user leaves onboarding inside a running session.
+                self?.appState?.quickStart(minutes: minutes, mission: mission)
+            },
+            onFinish: closeOnboarding)
+        let w = makeStandardWindow(title: "Welcome to Hyperfocus", view: view,
+                                   size: CGSize(width: 480, height: 500))
         onboardingWindow = w
         present(w)
     }
@@ -391,8 +398,9 @@ final class SessionCoordinator {
         return panel
     }
 
-    private func makeStandardWindow(title: String, view: some View) -> NSWindow {
-        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 480, height: 440),
+    private func makeStandardWindow(title: String, view: some View,
+                                    size: CGSize = CGSize(width: 480, height: 440)) -> NSWindow {
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = title
         window.contentView = NSHostingView(rootView: view)

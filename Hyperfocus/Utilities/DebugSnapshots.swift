@@ -39,8 +39,12 @@ enum DebugSnapshots {
                                               focus: 1500, paused: 96, breaks: 2, streak: 615)),
              "completion_card", dir, CGSize(width: 384, height: 440))
 
-        snap(OnboardingView(requestCamera: { $0(true) }, requestScreen: { $0(true) }, onFinish: {}),
-             "onboarding", dir, CGSize(width: 480, height: 440))
+        for i in 0..<5 {
+            snap(OnboardingView(requestCamera: { $0(true) }, requestScreen: { $0(true) },
+                                onStartFirstSession: { _, _ in }, onFinish: {},
+                                step: i, mission: i >= 1 ? "Write the report intro" : ""),
+                 "onboarding_step\(i + 1)", dir, CGSize(width: 480, height: 500))
+        }
 
         snap(SettingsView(onClearData: {}, onResetOrb: {}, onOpenSystemCamera: {}).environmentObject(app),
              "settings", dir, CGSize(width: 460, height: 560))
