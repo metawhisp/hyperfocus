@@ -88,11 +88,10 @@ final class FocusOrbWindowController {
             backing: .buffered, defer: false
         )
         p.isOpaque = false
-        // NOT .clear: macOS hit-tests transparent borderless windows PER PIXEL — with a fully clear
-        // background, clicks between the orb's particles fall through to the window beneath (text
-        // gets selected under the orb). A near-zero alpha keeps the whole 76 pt square clickable
-        // while staying visually invisible.
-        p.backgroundColor = NSColor.black.withAlphaComponent(0.02)
+        // Clear window; clickability is provided by a circular 2% hit disc drawn inside
+        // FocusOrbView (per-pixel hit testing) — a window-background tint would render as a
+        // faint SQUARE box around the orb.
+        p.backgroundColor = .clear
         p.hasShadow = false
         p.level = .statusBar
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
