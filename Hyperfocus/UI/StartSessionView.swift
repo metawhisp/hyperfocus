@@ -13,6 +13,7 @@ struct StartSessionView: View {
     @State private var isCustom = false
     @State private var customMinutes = ""
     @FocusState private var missionFocused: Bool
+    @FocusState private var customFocused: Bool
 
     private var trimmedMission: String { mission.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -78,26 +79,48 @@ struct StartSessionView: View {
         }
     }
 
+    // One fixed-height slot: the chips and the custom input swap IN PLACE with a crossfade —
+    // nothing below ever moves (user: "чтобы в том же самом месте появлялось, ничего не прыгало").
+    // if/else (not opacity layers): an invisible TextField would stay in the key-view loop and
+    // silently swallow Tab + keystrokes.
     private var durationRow: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                ForEach(Constants.Copy.durationPresetsMinutes, id: \.self) { m in
-                    FDChip(label: "\(m)", selected: !isCustom && selectedMinutes == m) {
-                        isCustom = false; selectedMinutes = m
+        ZStack(alignment: .leading) {
+            if isCustom {
+                HStack(spacing: 8) {
+                    FDChip(label: "‹", selected: false) {
+                        isCustom = false
+                        customFocused = false
+                    }
+                    FDInset {
+                        TextField("1–180", text: $customMinutes)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white)
+                            .focused($customFocused)
+                            .frame(width: 56)
+                    }
+                    Text("MIN")
+                        .font(.system(size: 10, weight: .bold)).tracking(1.2)
+                        .foregroundStyle(FD.label)
+                }
+                .transition(.opacity)
+            } else {
+                HStack(spacing: 8) {
+                    ForEach(Constants.Copy.durationPresetsMinutes, id: \.self) { m in
+                        FDChip(label: "\(m)", selected: selectedMinutes == m) {
+                            selectedMinutes = m
+                        }
+                    }
+                    FDChip(label: "CUSTOM", selected: false) {
+                        isCustom = true
+                        DispatchQueue.main.async { customFocused = true }
                     }
                 }
-                FDChip(label: "CUSTOM", selected: isCustom) { isCustom = true }
-            }
-            if isCustom {
-                FDInset {
-                    TextField("1–180", text: $customMinutes)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 70)
+                .transition(.opacity)
             }
         }
+        .frame(height: 38, alignment: .leading)
+        .animation(.easeInOut(duration: 0.18), value: isCustom)
     }
 
     private func start() {

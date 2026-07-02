@@ -243,7 +243,7 @@ private struct BarRuler: View {
                         .frame(width: BAR_W / 10)
                 }
             }
-            .offset(x: -BAR_W / 20)
+            .offset(x: BAR_W / 20)
             Fill(f: f).overlay(alignment: .trailing) { PctLabel(f: f) }
             if f > 0.02 && f < 1 {
                 Image(systemName: "chevron.compact.right")
@@ -276,7 +276,7 @@ private struct BarFlowRuler: View {
                         .frame(width: BAR_W / 10)
                 }
             }
-            .offset(x: -BAR_W / 20)
+            .offset(x: BAR_W / 20)
             // Fill: flowing diagonal stripes.
             Fill(f: f)
                 .overlay(flowStripes(0.14, phase: t * 22).clipShape(Capsule()).frame(width: fillWidth(f)),

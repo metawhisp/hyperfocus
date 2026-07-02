@@ -316,31 +316,74 @@ struct FDProgress: View {
         return mix(amber, red, Double(min(1, (fraction - 0.85) / 0.15)))
     }
 
+    /// Pass false (reduce motion) to freeze the stripes/tick glimmer.
+    var animated: Bool = true
+
+    // Gallery-picked design G (FLOW + RULER): diagonal stripes crawl through the fill,
+    // ruler ticks glimmer in the dark zone, % label from 30%, no head ornament.
     var body: some View {
-        let color = barColor
-        ZStack(alignment: .leading) {
-            Capsule().fill(Color.black.opacity(0.35))
-            Capsule()
-                .fill(LinearGradient(colors: [color, color.opacity(0.75)],
-                                     startPoint: .leading, endPoint: .trailing))
-                .frame(width: max(52, fraction * width))
-                .overlay(alignment: .trailing) {
-                    HStack(spacing: 8) {
-                        if fraction >= 0.10 {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animated)) { tl in
+            let t = animated ? tl.date.timeIntervalSinceReferenceDate : 0
+            let color = barColor
+            let fillW = max(14, fraction * width)
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.black.opacity(0.35))
+                // Dark zone: ruler ticks at 10%…90% (tall one at 50%), one glimmering at a time
+                // (covered as the fill grows).
+                HStack(spacing: 0) {
+                    ForEach(1..<10, id: \.self) { i in
+                        let glim = animated && (Int(t * 6) % 9) + 1 == i
+                        Rectangle()
+                            .fill(.white.opacity(glim ? 0.30 : 0.12))
+                            .frame(width: 1.5, height: i == 5 ? 16 : 10)
+                            .frame(width: width / 10)
+                    }
+                }
+                .offset(x: width / 20)
+                Capsule()
+                    .fill(LinearGradient(colors: [color, color.opacity(0.75)],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .frame(width: fillW)
+                    .overlay(FDFlowStripes(opacity: 0.14, phase: t * 22)
+                        .clipShape(Capsule())
+                        .frame(width: fillW), alignment: .leading)
+                    .overlay(alignment: .trailing) {
+                        if fraction >= 0.30 {
                             Text("\(Int(fraction * 100))%")
                                 .font(.system(size: 12, weight: .heavy))
                                 .foregroundStyle(.black.opacity(0.75))
+                                .padding(.trailing, 12)
                         }
-                        Image(systemName: "circle.circle.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.black.opacity(0.8))
                     }
-                    .padding(.trailing, 12)
-                }
-                .shadow(color: color.opacity(0.8), radius: 12)
-                .shadow(color: color.opacity(0.45), radius: 30)
+                    .shadow(color: color.opacity(0.8), radius: 12)
+                    .shadow(color: color.opacity(0.45), radius: 30)
+            }
+            .frame(width: width, height: 42)
         }
-        .frame(width: width, height: 42)
+    }
+}
+
+/// Diagonal moving stripes for the progress fill (design G).
+struct FDFlowStripes: View {
+    let opacity: Double
+    let phase: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let period: CGFloat = 16
+            let shift = CGFloat(phase.truncatingRemainder(dividingBy: Double(period)))
+            var x: CGFloat = -size.height - period + shift
+            while x < size.width + period {
+                var p = Path()
+                p.move(to: CGPoint(x: x, y: size.height))
+                p.addLine(to: CGPoint(x: x + size.height, y: 0))
+                p.addLine(to: CGPoint(x: x + size.height + 6, y: 0))
+                p.addLine(to: CGPoint(x: x + 6, y: size.height))
+                p.closeSubpath()
+                ctx.fill(p, with: .color(.white.opacity(opacity)))
+                x += period
+            }
+        }
     }
 }
 

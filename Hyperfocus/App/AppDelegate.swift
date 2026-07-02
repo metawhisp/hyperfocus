@@ -31,6 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MiniTimerPreviewWindow.show() // HUD collapse-to-orb demo; user approves before prod
             return
         }
+        if ProcessInfo.processInfo.environment["HF_CAMERA_PREVIEW"] == "1" {
+            CameraPitchPreviewWindow.show() // harder-selling ENABLE CAMERA variants
+            return
+        }
+        if ProcessInfo.processInfo.environment["HF_READY_PREVIEW"] == "1" {
+            ReadyCardPreviewWindow.show()   // READY? card — CUSTOM swaps in place
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }

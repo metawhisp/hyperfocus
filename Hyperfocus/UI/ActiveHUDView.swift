@@ -30,7 +30,8 @@ struct ActiveHUDView: View {
                         .font(.system(size: 13)).foregroundStyle(FD.label).lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
-                FDProgress(fraction: fraction, width: 352)
+                FDProgress(fraction: fraction, width: 352,
+                           animated: !app.settings.reduceMotion)
             }
             .overlay(alignment: .topTrailing) {
                 FDCloseButton { onExit() }
