@@ -33,7 +33,8 @@ enum DebugSnapshots {
                                               focus: 1500, paused: 96, breaks: 2, streak: 615)),
              "completion_card", dir, CGSize(width: 384, height: 440))
 
-        snap(OnboardingView(onFinish: {}), "onboarding", dir, CGSize(width: 480, height: 400))
+        snap(OnboardingView(requestCamera: { $0(true) }, requestScreen: { $0(true) }, onFinish: {}),
+             "onboarding", dir, CGSize(width: 480, height: 440))
 
         snap(SettingsView(onClearData: {}, onResetOrb: {}, onOpenSystemCamera: {}).environmentObject(app),
              "settings", dir, CGSize(width: 460, height: 560))

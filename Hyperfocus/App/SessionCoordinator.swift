@@ -19,6 +19,7 @@ final class SessionCoordinator {
     private let alarm: AlarmPlaying = AlarmService()
     private let simulated = SimulatedPresenceService()
     private let permission = CameraPermissionService()
+    private let screenPermission = ScreenAnalysisPermissionService()
     private var presence: PresenceDetecting?
     private let timer = SessionTimer()
 
@@ -85,11 +86,14 @@ final class SessionCoordinator {
     }
 
     func showOnboarding() {
-        let view = OnboardingView(onFinish: { [weak self] in
-            self?.settings.onboardingCompleted = true
-            self?.onboardingWindow?.orderOut(nil)
-            self?.onboardingWindow = nil
-        })
+        let view = OnboardingView(
+            requestCamera: { [weak self] done in self?.permission.requestAccess(completion: done) },
+            requestScreen: { [weak self] done in self?.screenPermission.requestAccess(completion: done) },
+            onFinish: { [weak self] in
+                self?.settings.onboardingCompleted = true
+                self?.onboardingWindow?.orderOut(nil)
+                self?.onboardingWindow = nil
+            })
         let w = makeStandardWindow(title: "Welcome to Hyperfocus", view: view)
         onboardingWindow = w
         present(w)
