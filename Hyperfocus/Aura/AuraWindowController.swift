@@ -1,4 +1,4 @@
-// AuraWindowController.swift — owns the 4 edge overlay windows on the main screen (canon §3).
+// AuraWindowController.swift — owns the single full-screen aura frame window (canon #28).
 
 import AppKit
 import SwiftUI
@@ -7,7 +7,7 @@ final class AuraWindowController {
     private let settings: SettingsStore
     private let screen: ScreenManager
     private let model = AuraModel()
-    private var windows: [NSWindow] = []
+    private var window: NSWindow?
     private var hideWorkItem: DispatchWorkItem?
 
     init(settings: SettingsStore, screen: ScreenManager) {
@@ -19,10 +19,10 @@ final class AuraWindowController {
 
     func setState(_ state: AuraState) {
         hideWorkItem?.cancel()
-        if windows.isEmpty { buildWindows() }
+        if window == nil { buildWindow() }
         model.reduceMotion = settings.reduceMotion
+        model.thickness = settings.auraThickness
 
-        // Faint by design (peripheral, "на 1%"): the living breathe/shimmer supplies presence, not brightness.
         let base = Constants.Aura.edgeMaxOpacity * settings.auraIntensity * 0.6
         switch state {
         case .hidden:
@@ -46,41 +46,27 @@ final class AuraWindowController {
         }
     }
 
-    /// Rebuild windows for the current main-screen geometry (canon §3.6 screen-change handling).
+    /// Rebuild for the current main-screen geometry (canon §3.6 screen-change handling).
     func rebuildWindows() {
         let wasVisible = model.visible
         teardown()
-        buildWindows()
+        buildWindow()
         model.visible = wasVisible
     }
 
-    // MARK: Windows
+    // MARK: Window
 
-    private func buildWindows() {
+    private func buildWindow() {
         teardown()
         let frame = screen.mainScreenFrame()
         guard frame.width > 0 else { return }
-        let thickness = Constants.Aura.baseThickness * settings.auraThickness
-
-        // Left/right strips are inset vertically by `thickness` so they don't overlap the top/bottom
-        // strips at the corners (overlap was double-drawing and darkening the corners).
-        let sideHeight = max(0, frame.height - thickness * 2)
-        let edges: [(AuraEdge, CGRect)] = [
-            (.top,    CGRect(x: frame.minX, y: frame.maxY - thickness, width: frame.width, height: thickness)),
-            (.bottom, CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: thickness)),
-            (.left,   CGRect(x: frame.minX, y: frame.minY + thickness, width: thickness, height: sideHeight)),
-            (.right,  CGRect(x: frame.maxX - thickness, y: frame.minY + thickness, width: thickness, height: sideHeight)),
-        ]
-
-        for (edge, rect) in edges {
-            let window = OverlayWindow.make(frame: rect)
-            let host = NSHostingView(rootView: AuraFrameView(model: model, edge: edge))
-            host.frame = CGRect(origin: .zero, size: rect.size)
-            host.autoresizingMask = [.width, .height]
-            window.contentView = host
-            window.orderFrontRegardless()          // never makeKey — aura must not steal focus (canon §3.3)
-            windows.append(window)
-        }
+        let w = OverlayWindow.make(frame: frame)
+        let host = NSHostingView(rootView: AuraFrameView(model: model))
+        host.frame = CGRect(origin: .zero, size: frame.size)
+        host.autoresizingMask = [.width, .height]
+        w.contentView = host
+        w.orderFrontRegardless()          // never makeKey — the aura must not steal focus (canon §3.3)
+        window = w
     }
 
     private func scheduleTeardown() {
@@ -93,7 +79,7 @@ final class AuraWindowController {
     }
 
     private func teardown() {
-        for window in windows { window.orderOut(nil) }
-        windows.removeAll()
+        window?.orderOut(nil)
+        window = nil
     }
 }

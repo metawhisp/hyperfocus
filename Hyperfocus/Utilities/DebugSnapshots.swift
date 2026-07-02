@@ -26,6 +26,12 @@ enum DebugSnapshots {
 
         snap(CountdownPreview(), "countdown", dir, CGSize(width: 620, height: 360))
 
+        // Aura frame uniformity check (A1): even glow along the whole perimeter, corners included.
+        let auraModel = AuraModel()
+        auraModel.visible = true
+        auraModel.reduceMotion = true
+        snap(AuraFrameView(model: auraModel), "aura_frame", dir, CGSize(width: 440, height: 270))
+
         snap(ActiveHUDView(onExit: {}).environmentObject(previewApp(mission: "Write landing page draft",
                                                                      remaining: 1122, state: .active)),
              "hud", dir, CGSize(width: 300, height: 190))
