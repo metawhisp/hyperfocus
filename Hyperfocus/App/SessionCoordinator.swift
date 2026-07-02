@@ -411,9 +411,11 @@ final class SessionCoordinator {
     private var stingerPlayer: AVAudioPlayer?
 
     private func playStartStinger() {
-        guard let url = Bundle.main.url(forResource: "session-start", withExtension: "mp3"),
+        guard let url = Bundle.main.url(forResource: "session-start", withExtension: "wav"),
               let p = try? AVAudioPlayer(contentsOf: url) else { return }
-        p.volume = Float(settings.soundVolume) * 0.5   // quiet background accent
+        // The clip is a quiet riser (RMS ≈ −21 dB): at ×0.5 it drowned under the voice
+        // ("а где звук?") — ×1.6 keeps it just beneath the voice line but clearly there.
+        p.volume = min(1, Float(settings.soundVolume) * 1.6)
         p.prepareToPlay()
         p.play()
         stingerPlayer = p
