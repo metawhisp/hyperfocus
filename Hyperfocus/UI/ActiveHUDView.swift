@@ -7,6 +7,8 @@ import SwiftUI
 struct ActiveHUDView: View {
     @EnvironmentObject var app: AppState
     var onExit: () -> Void
+    /// Double-click anywhere on the card → collapse to the mini pill under the orb (canon #33).
+    var onCollapse: () -> Void = {}
 
     private var ctx: SessionContext { app.context }
 
@@ -38,5 +40,7 @@ struct ActiveHUDView: View {
                     .offset(x: 8, y: -8)
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { onCollapse() }
     }
 }

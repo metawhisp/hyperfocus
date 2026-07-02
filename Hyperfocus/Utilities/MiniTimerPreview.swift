@@ -7,19 +7,7 @@
 import SwiftUI
 import AppKit
 
-/// Compact readout that lives under the orb while the HUD is collapsed.
-struct MiniTimerPill: View {
-    let mm: String
-    let ss: String
-
-    var body: some View {
-        MatrixTimer(mm: mm, ss: ss, size: 15, color: .white)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(Capsule().fill(Color.black.opacity(0.55)))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.10), lineWidth: 1))
-            .shadow(color: Palette.green.opacity(0.4), radius: 10)   // same green as the orb
-    }
-}
+// MiniTimerPill moved to production (UI/MiniTimerView.swift) — the demo shows the shipped pill.
 
 private struct DemoHUDCard: View {
     let mm: String

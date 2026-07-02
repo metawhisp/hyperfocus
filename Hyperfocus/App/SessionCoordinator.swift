@@ -221,7 +221,7 @@ final class SessionCoordinator {
         case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
         case .pauseTimer:               focusSound.stop()      // away: the alarm owns the soundscape
         case .resumeTimer:              startFocusSound()      // soundscape continues on the session clock
-        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession()
+        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); teardownMini(); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession()
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil
@@ -457,12 +457,104 @@ final class SessionCoordinator {
 
     private func showHUD() {
         guard hudPanel == nil, let app = appState else { return }
-        let view = ActiveHUDView(onExit: { [weak self] in self?.requestExitConfirmation() })
+        let view = ActiveHUDView(onExit: { [weak self] in self?.requestExitConfirmation() },
+                                 onCollapse: { [weak self] in self?.collapseHUD() })
         let panel = makeCardPanel(view, app: app, level: .statusBar)
         panel.isMovableByWindowBackground = true   // the timer card must be user-draggable
         placeNearOrb(panel)
         hudPanel = panel
         panel.orderFrontRegardless()
+    }
+
+    // MARK: HUD collapse — mini pill under the orb (canon #33, demo-approved)
+
+    private var miniPanel: NSPanel?
+    private var orbMoveObserver: NSObjectProtocol?
+    private var isCollapsing = false   // re-entry guard: miniPanel is only set after the fade
+
+    private func collapseHUD() {
+        guard miniPanel == nil, !isCollapsing, let app = appState, let hud = hudPanel else { return }
+        isCollapsing = true
+        // Fade the card out, then dock the pill under the orb and fade it in.
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.22
+            hud.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            guard let self else { return }
+            self.isCollapsing = false
+            hud.alphaValue = 1
+            // The session may have ended mid-fade (.stopTimer nils hudPanel) — never dock a
+            // pill for a dead session or on top of an existing one.
+            guard self.hudPanel === hud, self.miniPanel == nil,
+                  self.appState?.context.state.isRunning == true else {
+                hud.orderOut(nil)
+                return
+            }
+            hud.orderOut(nil)
+            let view = MiniTimerHUDView(onExpand: { [weak self] in self?.expandHUD() })
+            let panel = self.makeCardPanel(view, app: app, level: .statusBar, margins: .chip)
+            self.positionMiniUnderOrb(panel)
+            panel.alphaValue = 0
+            panel.orderFrontRegardless()
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.22
+                panel.animator().alphaValue = 1
+            }
+            self.miniPanel = panel
+            // The pill follows the orb while it is being dragged around.
+            self.orbMoveObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didMoveNotification, object: nil, queue: .main) { [weak self] note in
+                guard let self, let mini = self.miniPanel,
+                      let moved = note.object as? NSWindow,
+                      moved.windowNumber == self.orb.windowNumber else { return }
+                self.positionMiniUnderOrb(mini)
+            }
+        })
+    }
+
+    private func expandHUD() {
+        teardownMini(animated: true)
+        // Defense in depth: never resurrect a HUD outside a running session.
+        guard appState?.context.state.isRunning == true else { return }
+        guard let hud = hudPanel else { showHUD(); return }
+        hud.alphaValue = 0
+        hud.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            hud.animator().alphaValue = 1
+        }
+    }
+
+    private func teardownMini(animated: Bool = false) {
+        if let obs = orbMoveObserver {
+            NotificationCenter.default.removeObserver(obs)
+            orbMoveObserver = nil
+        }
+        guard let mini = miniPanel else { return }
+        miniPanel = nil
+        if animated {
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.18
+                mini.animator().alphaValue = 0
+            }, completionHandler: { mini.orderOut(nil) })
+        } else {
+            mini.orderOut(nil)
+        }
+    }
+
+    /// Center the pill's VISIBLE capsule under the orb; flip above it when there is no room.
+    private func positionMiniUnderOrb(_ panel: NSPanel) {
+        let m = CardMargins.chip
+        let orbFrame = orb.currentFrame
+        let vb = orb.currentVisibleBounds
+        let size = panel.frame.size
+        var x = orbFrame.midX - size.width / 2
+        x = min(max(x, vb.minX + 4 - m.horizontal), vb.maxX - size.width - 4 + m.horizontal)
+        var y = orbFrame.minY - 8 - size.height + m.top      // visible pill top 8pt below the orb
+        if y + m.bottom < vb.minY + 4 {                      // no room below → dock above
+            y = orbFrame.maxY + 8 - m.bottom
+        }
+        panel.setFrameOrigin(CGPoint(x: x, y: y))
     }
 
     private func showAwayCard() {
