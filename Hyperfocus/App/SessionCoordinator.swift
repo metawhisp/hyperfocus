@@ -421,6 +421,7 @@ final class SessionCoordinator {
         guard hudPanel == nil, let app = appState else { return }
         let view = ActiveHUDView(onExit: { [weak self] in self?.requestExitConfirmation() })
         let panel = makeCardPanel(view, app: app, level: .statusBar)
+        panel.isMovableByWindowBackground = true   // the timer card must be user-draggable
         placeNearOrb(panel)
         hudPanel = panel
         panel.orderFrontRegardless()
