@@ -15,6 +15,9 @@ enum DebugSnapshots {
 
         snap(FocusOrbView().environmentObject(app), "orb", dir, CGSize(width: 96, height: 96))
 
+        // Same idle orb over a LIGHT background — the halo must fade to 0%, no hard-edged disc.
+        snapLight(FocusOrbView().environmentObject(app), "orb_on_light", dir, CGSize(width: 96, height: 96))
+
         snap(FocusOrbView().environmentObject(previewApp(mission: "x", remaining: 100, state: .active)),
              "orb_active", dir, CGSize(width: 96, height: 96))
 
@@ -63,13 +66,25 @@ enum DebugSnapshots {
         return a
     }
 
+    private static func snapLight(_ view: some View, _ name: String, _ dir: URL, _ size: CGSize) {
+        let content = ZStack {
+            Color(red: 0.99, green: 0.99, blue: 0.985)
+            view
+        }
+        .frame(width: size.width, height: size.height)
+        render(content, name, dir)
+    }
+
     private static func snap(_ view: some View, _ name: String, _ dir: URL, _ size: CGSize) {
         let content = ZStack {
             Color(red: 0.06, green: 0.07, blue: 0.09)
             view
         }
         .frame(width: size.width, height: size.height)
+        render(content, name, dir)
+    }
 
+    private static func render(_ content: some View, _ name: String, _ dir: URL) {
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
         guard let image = renderer.nsImage,

@@ -105,11 +105,20 @@ final class FocusOrbWindowController {
         // The window-server computes the click shape from the WINDOW'S OWN surface. SwiftUI content
         // (NSHostingView) composites via a separate layer tree, so a .clear window is click-dead
         // everywhere — even over visually opaque pixels (verified by HF_SELFTEST window-server
-        // probes). A near-invisible CIRCULAR backing on the container's layer (part of the window
-        // surface) makes the orb clickable without any square box.
+        // probes). A near-invisible backing on the container's layer (part of the window surface)
+        // makes the orb clickable. It is a RADIAL GRADIENT fading to 0% — a flat disc reads as a
+        // hard-edged gray circle on light backgrounds.
         container.wantsLayer = true
-        container.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.03).cgColor
-        container.layer?.cornerRadius = orbWindowSize / 2
+        let backing = CAGradientLayer()
+        backing.type = .radial
+        backing.frame = container.bounds
+        backing.colors = [NSColor.black.withAlphaComponent(0.035).cgColor,
+                          NSColor.black.withAlphaComponent(0.030).cgColor,
+                          NSColor.black.withAlphaComponent(0.0).cgColor]
+        backing.locations = [0, 0.55, 1]
+        backing.startPoint = CGPoint(x: 0.5, y: 0.5)
+        backing.endPoint = CGPoint(x: 1.0, y: 0.5)   // radius = half width (inscribed circle)
+        container.layer?.insertSublayer(backing, at: 0)
         container.onClick = { [weak self] in self?.onClick?() }
         container.onSecondaryClick = { [weak self] e in self?.onSecondaryClick?(e) }
         container.onHoverChanged = { [weak self] h in self?.onHoverChanged?(h) }

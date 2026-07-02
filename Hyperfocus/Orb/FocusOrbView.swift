@@ -44,12 +44,21 @@ struct RingToParticlesOrb: View {
             let color = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
 
             // Outer halo — visible ember when off, BLAZING when on (scales with brightness).
+            // Multi-stop tail so the glow fades smoothly to 0% — a 2-stop linear ramp reads as a
+            // hard-edged disc on light backgrounds.
             let glowR = R * 2.3
             let haloAlpha = min(1.0, (0.10 + 0.38 * p) * brightness)
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - glowR, y: c.y - glowR,
                                             width: glowR * 2, height: glowR * 2)),
-                     with: .radialGradient(Gradient(colors: [color.opacity(haloAlpha), .clear]),
-                                           center: c, startRadius: R * 0.35, endRadius: glowR))
+                     with: .radialGradient(
+                        Gradient(stops: [
+                            .init(color: color.opacity(haloAlpha), location: 0.00),
+                            .init(color: color.opacity(haloAlpha * 0.45), location: 0.40),
+                            .init(color: color.opacity(haloAlpha * 0.18), location: 0.65),
+                            .init(color: color.opacity(haloAlpha * 0.05), location: 0.85),
+                            .init(color: .clear, location: 1.00),
+                        ]),
+                        center: c, startRadius: R * 0.35, endRadius: glowR))
             // Inner bloom — the sphere itself radiates once powered on.
             if p > 0.01 {
                 let bloomR = R * 1.25
@@ -113,7 +122,7 @@ struct OrbMorphStyle {
         let alarmRed = SIMD3(1.00, 0.30, 0.30)
         switch state {
         case .idle, .exited:
-            progress = 0; rgb = red;      brightness = 1.3; pulseRate = 0
+            progress = 0; rgb = red;      brightness = 3.0; pulseRate = 0   // neon: always visible
         case .preparing, .countdown:
             progress = 1; rgb = green;    brightness = 2.2; pulseRate = 1.6
         case .active:
