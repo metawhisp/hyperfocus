@@ -438,36 +438,43 @@ private struct FDStartMock: View {
     var body: some View {
         FDCard(width: 380) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Text("PREPARE").font(.system(size: 11, weight: .bold)).tracking(2)
-                        .foregroundStyle(FD.amber)
+                HStack(alignment: .top) {
+                    Text("READY?").font(FD.matrix(30)).foregroundStyle(.white)
                     Spacer()
-                    RingToParticlesOrb(t: 1.4, progress: 0, diameter: 22, brightness: 2.5)
-                        .frame(width: 30, height: 30)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(FD.label)
+                        .padding(7)
+                        .background(Circle().fill(Color.black.opacity(0.35)))
                 }
-                Text("HYPERFOCUS").font(FD.matrix(30)).foregroundStyle(.white)
 
-                FDInset {
-                    HStack {
-                        Text("Write the report intro")
-                            .font(.system(size: 14)).foregroundStyle(.white)
-                        Spacer()
-                    }.frame(width: 300)
-                }
-                FDInset {
-                    HStack {
-                        Text("This session is successful if…")
-                            .font(.system(size: 12)).foregroundStyle(FD.label)
-                        Spacer()
-                    }.frame(width: 300)
+                VStack(alignment: .leading, spacing: 8) {
+                    FDInset {
+                        HStack {
+                            Text("Write the report intro")
+                                .font(.system(size: 14)).foregroundStyle(.white)
+                            Spacer()
+                        }.frame(width: 300)
+                    }
+                    // Smart suggestion pulled from the screen context (frontmost window) — one tap fills it.
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10)).foregroundStyle(FD.amber)
+                        Text("Continue: «Q3 report.numbers»")
+                            .font(.system(size: 11, weight: .medium)).foregroundStyle(FD.amber)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Capsule().fill(FD.amber.opacity(0.10)))
                 }
 
                 HStack(spacing: 8) {
-                    ForEach(["5", "15", "25", "45", "∞"], id: \.self) { m in
+                    ForEach(["5", "15", "25", "45", "CUSTOM"], id: \.self) { m in
                         let hot = m == "25"
-                        Text(m).font(.system(size: 13, weight: .bold))
+                        Text(m).font(.system(size: 12, weight: .bold))
                             .foregroundStyle(hot ? .black : FD.label)
-                            .frame(width: 46, height: 32)
+                            .padding(.horizontal, m == "CUSTOM" ? 14 : 0)
+                            .frame(minWidth: m == "CUSTOM" ? 0 : 46)
+                            .frame(height: 32)
                             .background(Capsule().fill(hot ?
                                 AnyShapeStyle(LinearGradient(colors: [FD.lime, FD.limeDeep],
                                                              startPoint: .top, endPoint: .bottom)) :
@@ -476,18 +483,15 @@ private struct FDStartMock: View {
                     }
                 }
 
-                HStack(spacing: 12) {
-                    Text("Cancel").font(.system(size: 13, weight: .medium)).foregroundStyle(FD.label)
-                    Spacer()
-                    Text("ENTER HYPERFOCUS")
-                        .font(.system(size: 13, weight: .heavy)).tracking(0.5)
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 22).padding(.vertical, 12)
-                        .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
-                                                                  startPoint: .top, endPoint: .bottom)))
-                        .shadow(color: FD.lime.opacity(0.8), radius: 14)
-                        .shadow(color: FD.lime.opacity(0.4), radius: 34)
-                }
+                Text("ENTER HYPERFOCUS")
+                    .font(.system(size: 13, weight: .heavy)).tracking(0.5)
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(Capsule().fill(LinearGradient(colors: [FD.lime, FD.limeDeep],
+                                                              startPoint: .top, endPoint: .bottom)))
+                    .shadow(color: FD.lime.opacity(0.8), radius: 14)
+                    .shadow(color: FD.lime.opacity(0.4), radius: 34)
             }
         }
     }
