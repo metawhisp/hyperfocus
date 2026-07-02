@@ -5,20 +5,17 @@ import Foundation
 final class SimulatedPresenceService: PresenceDetecting {
     var onEvent: ((PresenceEvent) -> Void)?
 
-    func startWarmup() {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 7
-    }
+    func startWarmup() { /* no hardware to warm up */ }
 
     func startDetection() {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 7
+        // Assume the user is present when detection begins.
+        onEvent?(.facePresent)
     }
 
-    func stop() {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 7
-    }
+    func stop() { /* nothing to tear down */ }
 
-    /// Called by the Debug menu items to emit simulated presence events.
+    /// Called by the Debug menu items to emit simulated presence events on the main thread.
     func simulate(_ event: PresenceEvent) {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 7
+        onEvent?(event)
     }
 }

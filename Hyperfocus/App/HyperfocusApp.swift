@@ -5,28 +5,27 @@ import SwiftUI
 @main
 struct HyperfocusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var appState = AppState()
+    @StateObject private var appState = AppState.shared
 
     var body: some Scene {
-        MenuBarExtra("Hyperfocus") {
-            // Present only while the orb is hidden (specs/01 §11 item 1); visibility gating lands in Phase 2/10.
-            Button("Show Focus Orb") {}
-            Button("Settings…") {}
-            Button("Session History…") {}
+        MenuBarExtra("Hyperfocus", systemImage: "circle.circle") {
+            Button("Show Focus Orb") { appState.showOrb() }
+            Button("Settings…") { appState.showSettings() }
+            Button("Session History…") { appState.showHistory() }
+
             #if DEBUG
             Divider()
             Menu("Debug") {
-                Button("Simulate: Face Present") {}
-                Button("Simulate: Face Missing") {}
-                Button("Simulate: Jump to Away") {}
-                Button("Simulate: Return") {}
-                Toggle("Use Simulated Camera", isOn: .constant(false))
+                Button("Simulate: Face Present") { appState.simulatePresent() }
+                Button("Simulate: Face Missing") { appState.simulateMissing() }
+                Button("Simulate: Jump to Away") { appState.simulateJumpToAway() }
+                Button("Simulate: Return") { appState.simulateReturn() }
+                Toggle("Use Simulated Camera", isOn: $appState.useSimulatedCamera)
             }
             #endif
+
             Divider()
-            // Must dispatch .userExited first if a session is running (specs/01 §11); wired in Phase 1.
-            Button("Quit Hyperfocus") { NSApplication.shared.terminate(nil) }
+            Button("Quit Hyperfocus") { appState.quit() }
         }
-        .environmentObject(appState)
     }
 }

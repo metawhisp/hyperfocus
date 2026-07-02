@@ -1,9 +1,17 @@
-// AppDelegate.swift — window bootstrap and screen-change observation (canon §2).
+// AppDelegate.swift — window bootstrap and app lifecycle (canon §2).
 
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 1
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["HF_SNAPSHOT"] == "1" {
+            DebugSnapshots.renderAll(app: AppState.shared)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { NSApp.terminate(nil) }
+            return
+        }
+        #endif
+        // Agent app (LSUIElement) — no Dock icon; the orb + menu bar extra are the UI.
+        AppState.shared.bootstrap()
     }
 }

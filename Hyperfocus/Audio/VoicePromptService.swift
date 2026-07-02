@@ -1,13 +1,19 @@
 // VoicePromptService.swift — AVSpeechSynthesizer implementation of VoicePrompting (canon §6).
 
-import Foundation
+import AVFoundation
 
 final class VoicePromptService: VoicePrompting {
+    private let synthesizer = AVSpeechSynthesizer()
+
     func speak(_ line: VoiceLine, style: VoiceStyle) {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 4
+        let utterance = AVSpeechUtterance(string: Constants.Copy.voiceLine(line))
+        utterance.rate = Constants.Voice.rate(for: style)
+        utterance.pitchMultiplier = Constants.Voice.pitchMultiplier(for: style)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        synthesizer.speak(utterance)
     }
 
     func stopSpeaking() {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 4
+        synthesizer.stopSpeaking(at: .immediate)
     }
 }

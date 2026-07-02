@@ -6,17 +6,28 @@ final class ScreenManager {
     /// Fired on NSApplication.didChangeScreenParametersNotification.
     var onScreenParametersChanged: (() -> Void)?
 
+    private var observer: NSObjectProtocol?
+
+    /// Full frame of the main screen (includes menu bar area) — used for the aura windows.
     func mainScreenFrame() -> CGRect {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 4
-        return .zero
+        NSScreen.main?.frame ?? .zero
     }
 
+    /// Visible frame (excludes menu bar / Dock) — used to place and clamp the orb and cards.
     func visibleBounds() -> CGRect {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 4
-        return .zero
+        NSScreen.main?.visibleFrame ?? .zero
     }
 
     func startObservingScreenChanges() {
-        // IMPLEMENT — see specs/05-implementation-plan.md Phase 4
+        observer = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.onScreenParametersChanged?()
+        }
+    }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
     }
 }
