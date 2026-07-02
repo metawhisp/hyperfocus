@@ -137,6 +137,99 @@ private struct InnerParticles: View {
     }
 }
 
+// MARK: V5 — the red ring ITSELF morphs into rotating particles (one entity, two forms)
+
+struct RingToParticlesOrb: View {
+    let t: Double          // drives sphere rotation
+    let progress: Double   // 0 = red ring (off) … 1 = green rotating particle sphere (on)
+    var diameter: CGFloat = 46
+
+    private static let count = 240
+    // Sorted by screen angle so ring dot i flies to a sphere point at a similar angle — the ring
+    // "inflates" into the sphere instead of scrambling through the middle.
+    private static let points: [SIMD3<Double>] = {
+        let golden = Double.pi * (3 - sqrt(5))
+        let lattice = (0..<count).map { i -> SIMD3<Double> in
+            let y = 1 - (Double(i) / Double(count - 1)) * 2
+            let r = (1 - y * y).squareRoot()
+            let a = golden * Double(i)
+            return SIMD3(cos(a) * r, y, sin(a) * r)
+        }
+        return lattice.sorted { atan2($0.y, $0.x) < atan2($1.y, $1.x) }
+    }()
+
+    private static let offRGB = SIMD3(0.85, 0.20, 0.22)
+    private static let onRGB = SIMD3(0.16, 0.92, 0.55)
+
+    var body: some View {
+        Canvas { ctx, size in
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let p = progress * progress * (3 - 2 * progress)          // eased
+            let R = Double(diameter) / 2 * 0.62
+            let rgb = Self.offRGB + (Self.onRGB - Self.offRGB) * p
+            let color = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
+
+            // Soft glow — dim ember around the off ring, brighter as it powers on.
+            let glowR = R * 2.0
+            ctx.fill(Path(ellipseIn: CGRect(x: c.x - glowR, y: c.y - glowR,
+                                            width: glowR * 2, height: glowR * 2)),
+                     with: .radialGradient(Gradient(colors: [color.opacity(0.12 + 0.26 * p), .clear]),
+                                           center: c, startRadius: R * 0.4, endRadius: glowR))
+
+            let rotY = t * 0.55, rotX = t * 0.21
+            let cy = cos(rotY), sy = sin(rotY), cx = cos(rotX), sx = sin(rotX)
+            for (i, pt) in Self.points.enumerated() {
+                // Form A: a point on the flat ring (dots overlap into a solid circle line).
+                let a = 2 * Double.pi * Double(i) / Double(Self.count)
+                let ringX = cos(a) * R, ringY = sin(a) * R
+
+                // Form B: the same point on the rotating sphere.
+                let x1 = pt.x * cy + pt.z * sy
+                let z1 = -pt.x * sy + pt.z * cy
+                let y1 = pt.y * cx - z1 * sx
+                let z2 = pt.y * sx + z1 * cx
+                let depth = (z2 + 1) / 2
+                let sphX = x1 * R * 1.05, sphY = y1 * R * 1.05
+
+                let x = ringX + (sphX - ringX) * p
+                let y = ringY + (sphY - ringY) * p
+                let d = 0.55 + (depth - 0.55) * p
+                let dotR = (1.15 + ((0.30 + 0.50 * depth) * R / 14 - 1.15) * p)
+                let bright = 0.95 + ((0.16 + 0.74 * depth) - 0.95) * p
+                let dotColor = Color(red: rgb.x + (1 - rgb.x) * d * 0.45 * p,
+                                     green: rgb.y + (1 - rgb.y) * d * 0.45 * p,
+                                     blue: rgb.z + (1 - rgb.z) * d * 0.45 * p)
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x + x - dotR, y: c.y + y - dotR,
+                                                width: dotR * 2, height: dotR * 2)),
+                         with: .color(dotColor.opacity(bright)))
+            }
+        }
+    }
+}
+
+/// Auto-cycling live demo: off ring → powers on into the rotating sphere → powers off.
+private struct RingMorphDemoCell: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            RingToParticlesOrb(t: t, progress: Self.progress(at: t), diameter: 64)
+                .frame(width: 170, height: 150)
+        }
+    }
+
+    /// 6 s cycle: hold off 1.2 s → power on 0.9 s → hold on 2.7 s → power off 0.9 s → hold off.
+    private static func progress(at t: Double) -> Double {
+        let phase = t.truncatingRemainder(dividingBy: 6.0)
+        switch phase {
+        case ..<1.2: return 0
+        case ..<2.1: return (phase - 1.2) / 0.9
+        case ..<4.8: return 1
+        case ..<5.7: return 1 - (phase - 4.8) / 0.9
+        default:     return 0
+        }
+    }
+}
+
 private struct LiveOrbCell: View {
     let variant: Int
     let on: Bool
@@ -151,10 +244,17 @@ struct OrbLiveGalleryView: View {
     private let names = ["V1 · Дыхание", "V2 · Вихрь", "V3 · Частицы", "V4 · Пульс-дрейф"]
 
     var body: some View {
-        VStack(spacing: 14) {
-            Text("Вкл (зелёный, свет внутри) · Выкл (красный, погасший)")
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.6))
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                Text("V5 · Кольцо ⇄ Частицы — красная окружность рассыпается в крутящуюся сферу (автоцикл вкл/выкл)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.8))
+                RingMorphDemoCell()
+            }
+            Divider().overlay(Color.white.opacity(0.1))
+            Text("Для сравнения: свет внутри — вкл (зелёный) / выкл (красный)")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.5))
             HStack(alignment: .top, spacing: 22) {
                 ForEach(0..<4, id: \.self) { i in
                     VStack(spacing: 8) {

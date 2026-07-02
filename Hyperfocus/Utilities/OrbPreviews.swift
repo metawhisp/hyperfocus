@@ -355,6 +355,24 @@ struct InnerLitStillsView: View {
     }
 }
 
+/// Morph phases of the V5 ring⇄particles concept: p = 0, 0.35, 0.7, 1.
+struct RingMorphStillsView: View {
+    var body: some View {
+        HStack(spacing: 20) {
+            ForEach([0.0, 0.35, 0.7, 1.0], id: \.self) { p in
+                VStack(spacing: 8) {
+                    RingToParticlesOrb(t: 1.4, progress: p, diameter: 60)
+                        .frame(width: 150, height: 130)
+                    Text(String(format: "p = %.2f", p))
+                        .font(.system(size: 11)).foregroundStyle(.white.opacity(0.7))
+                }
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.055, green: 0.065, blue: 0.09))
+    }
+}
+
 @MainActor
 enum OrbPreviewRenderer {
     static func render() {
@@ -362,6 +380,8 @@ enum OrbPreviewRenderer {
         write(PlasmaVariantsGalleryView(), name: "orb_plasma_variants.png")
         // Static check frames of the inner-light variants (one animation phase).
         write(InnerLitStillsView(), name: "orb_inner_stills.png")
+        // Morph phases of V5 ring⇄particles (off → powering on → on).
+        write(RingMorphStillsView(), name: "orb_morph_stills.png")
     }
 
     private static func write(_ view: some View, name: String) {
