@@ -5,7 +5,7 @@
 
 ## Current phase
 
-**MVP feature-complete and runnable. Remaining: human spot-check of live on-screen behaviour.**
+**FLIGHT DECK shipped end-to-end (canon #25–#29): orb v4 morph, uniform aura A1, redesigned session screens, achievements engine, focus soundscape, context wand, onboarding v3 in FD design.** Remaining: user walkthrough (incl. real-camera attention test via HFCAM logs) and Settings deep-restyle if requested.
 
 The app builds, launches as a menu-bar agent (no Dock icon), and runs without crashing.
 The tested reducer/timer/stores are wired into real windows and services end to end.

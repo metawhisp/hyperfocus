@@ -1,5 +1,5 @@
-// OnboardingView.swift — activation-first onboarding (canon §13 #26): teach by doing, collect the
-// first mission along the way, and end with the user INSIDE their first running session.
+// OnboardingView.swift — activation-first onboarding in FLIGHT DECK design (canon #26, #29).
+// Teach by doing, collect the first mission along the way, end INSIDE the first running session.
 
 import SwiftUI
 
@@ -9,6 +9,7 @@ struct OnboardingView: View {
     /// Close onboarding and immediately start the first session with what the user typed.
     var onStartFirstSession: (String, Int) -> Void
     var onFinish: () -> Void
+    var onSuggest: () -> String? = { nil }   // magic wand parity with the READY? card
 
     @State private var step: Int
     @State private var mission: String
@@ -20,11 +21,13 @@ struct OnboardingView: View {
          requestScreen: @escaping (@escaping (Bool) -> Void) -> Void,
          onStartFirstSession: @escaping (String, Int) -> Void,
          onFinish: @escaping () -> Void,
+         onSuggest: @escaping () -> String? = { nil },
          step: Int = 0, mission: String = "") {
         self.requestCamera = requestCamera
         self.requestScreen = requestScreen
         self.onStartFirstSession = onStartFirstSession
         self.onFinish = onFinish
+        self.onSuggest = onSuggest
         _step = State(initialValue: step)
         _mission = State(initialValue: mission)
     }
@@ -35,17 +38,24 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, 36)
+                .padding(.horizontal, 40)
             HStack(spacing: 6) {
                 ForEach(0..<5, id: \.self) { i in
-                    Circle().fill(i == step ? Palette.green : Color.white.opacity(0.18))
+                    Circle().fill(i == step ? FD.lime : Color.white.opacity(0.15))
                         .frame(width: 6, height: 6)
                 }
             }
             .padding(.bottom, 20)
         }
         .frame(width: 480, height: 500)
-        .background(Color(red: 0.055, green: 0.065, blue: 0.09))
+        .background(
+            ZStack(alignment: .topLeading) {
+                LinearGradient(colors: [FD.deviceHi, FD.device], startPoint: .top, endPoint: .bottom)
+                FDDotGrid()
+                Circle().fill(FD.lime.opacity(0.15)).frame(width: 220, height: 220)
+                    .blur(radius: 80).offset(x: -60, y: -70)
+            }
+        )
         .preferredColorScheme(.dark)
         .animation(.easeInOut(duration: 0.3), value: step)
     }
@@ -63,17 +73,16 @@ struct OnboardingView: View {
     // MARK: Step 1 — meet the orb (learn the core gesture by doing it)
 
     private var meetTheOrb: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             Spacer()
-            Text("This is your Focus Orb")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-            Text("It lives in the corner of your screen.\nOne click starts a focus session.")
-                .font(.system(size: 13)).foregroundStyle(.secondary)
+            Text("FOCUS ORB").font(FD.matrix(24)).foregroundStyle(.white)
+            Text("It lives in the corner of your screen.\nOne click starts a session.")
+                .font(.system(size: 12)).foregroundStyle(FD.label)
                 .multilineTextAlignment(.center)
             OrbClickDemo(onDone: { step = 1 })
-            Text("Click the orb to continue")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Palette.green)
+            Text("CLICK THE ORB TO CONTINUE")
+                .font(.system(size: 11, weight: .bold)).tracking(1.2)
+                .foregroundStyle(FD.lime)
             Spacer()
         }
     }
@@ -81,41 +90,41 @@ struct OnboardingView: View {
     // MARK: Step 2 — the first mission (collected for real use at the end)
 
     private var firstMission: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(spacing: 14) {
             Spacer()
-            Text("One task. One session.")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+            Text("ONE TASK").font(FD.matrix(24)).foregroundStyle(.white)
             Text("What will you focus on first?")
-                .font(.system(size: 13)).foregroundStyle(.secondary)
+                .font(.system(size: 12)).foregroundStyle(FD.label)
 
-            TextField("e.g. Write the report intro", text: $mission)
-                .textFieldStyle(.plain)
-                .font(.system(size: 14))
-                .padding(.horizontal, 12).padding(.vertical, 10)
-                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.12)))
+            FDInset {
+                HStack(spacing: 10) {
+                    TextField("e.g. Write the report intro", text: $mission)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                    Button {
+                        if let s = onSuggest() { mission = s }
+                    } label: {
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(FD.lime)
+                            .shadow(color: FD.lime.opacity(0.7), radius: 6)
+                    }
+                    .buttonStyle(HFPressStyle())
+                }
+                .frame(width: 300)
+            }
 
             HStack(spacing: 8) {
                 ForEach([5, 15, 25], id: \.self) { m in
-                    Button("\(m) min") { minutes = m }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(minutes == m ? Palette.green : Color.white.opacity(0.07), in: Capsule())
-                        .foregroundStyle(minutes == m ? .black : .primary)
+                    FDChip(label: "\(m)", selected: minutes == m) { minutes = m }
                 }
-                Spacer()
             }
             Text("Small first session — an easy win.")
-                .font(.system(size: 11)).foregroundStyle(.tertiary)
+                .font(.system(size: 10)).foregroundStyle(FD.label)
 
-            HStack {
-                Spacer()
-                Button("Next") { step = 2 }
-                    .buttonStyle(.borderedProminent).tint(Palette.green)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(trimmedMission.isEmpty)
-            }
+            FDPrimaryButton(title: "NEXT", disabled: trimmedMission.isEmpty) { step = 2 }
+                .keyboardShortcut(.defaultAction)
             Spacer()
         }
     }
@@ -124,11 +133,13 @@ struct OnboardingView: View {
 
     private var cameraStep: some View {
         permissionStep(
-            icon: "person.fill.viewfinder",
-            title: "It notices when you drift",
-            body: "Leave your Mac mid-session and the timer pauses — a gentle sound calls you back. Presence is the core of Hyperfocus: the camera is required for the full experience (without it, sessions run as plain timers). Frames are analyzed on your Mac only — nothing is recorded or uploaded, ever.",
+            icon: PixelIcon.target, iconColor: FD.lime,
+            title: "IT SEES YOU DRIFT",
+            body: "Leave your Mac and the timer pauses —\na gentle sound calls you back.",
+            highlight: "CAMERA REQUIRED FOR THE FULL EXPERIENCE",
+            privacy: "Frames never leave your Mac. No recording, no upload.",
             granted: cameraGranted,
-            enableTitle: "Enable camera",
+            enableTitle: "ENABLE CAMERA",
             enable: { requestCamera { granted in cameraGranted = granted; step = 3 } },
             skip: { step = 3 }
         )
@@ -138,39 +149,44 @@ struct OnboardingView: View {
 
     private var screenStep: some View {
         permissionStep(
-            icon: "rectangle.dashed.badge.record",
-            title: "Distraction radar",
-            body: "Hyperfocus can spot YouTube or a social feed on your screen and gently nudge you back to your task. Analyzed locally, never stored, never sent anywhere.",
+            icon: PixelIcon.bolt, iconColor: FD.amber,
+            title: "DISTRACTION RADAR",
+            body: "Spots YouTube or a feed on your screen\nand nudges you back to the task.",
+            highlight: nil,
+            privacy: "Analyzed locally. Never stored, never sent.",
             granted: screenGranted,
-            enableTitle: "Enable screen access",
+            enableTitle: "ENABLE SCREEN ACCESS",
             enable: { requestScreen { granted in screenGranted = granted; step = 4 } },
             skip: { step = 4 }
         )
     }
 
-    private func permissionStep(icon: String, title: String, body bodyText: String,
+    private func permissionStep(icon: [String], iconColor: Color, title: String, body bodyText: String,
+                                highlight: String?, privacy: String,
                                 granted: Bool?, enableTitle: String,
                                 enable: @escaping () -> Void, skip: @escaping () -> Void) -> some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             Spacer()
-            Image(systemName: icon)
-                .font(.system(size: 34))
-                .foregroundStyle(Palette.green)
-            Text(title).font(.system(size: 22, weight: .bold, design: .rounded))
+            PixelIcon(pattern: icon, color: iconColor, pixel: 3.4)
+            Text(title).font(FD.matrix(20)).foregroundStyle(.white)
             Text(bodyText)
-                .font(.system(size: 13)).foregroundStyle(.secondary)
+                .font(.system(size: 12)).foregroundStyle(FD.label)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 380)
+            if let highlight {
+                Text(highlight)
+                    .font(.system(size: 9, weight: .bold)).tracking(1.2)
+                    .foregroundStyle(FD.amber)
+            }
+            Text(privacy).font(.system(size: 10)).foregroundStyle(FD.label)
             if let granted {
                 Label(granted ? "Access granted" : "Not enabled",
                       systemImage: granted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 12))
-                    .foregroundStyle(granted ? Palette.green : .secondary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(granted ? FD.lime : FD.label)
             }
-            HStack(spacing: 10) {
-                Button("Not now", action: skip).buttonStyle(.bordered)
-                Button(enableTitle, action: enable)
-                    .buttonStyle(.borderedProminent).tint(Palette.green)
+            HStack(spacing: 8) {
+                FDGhostButton(title: "Not now", action: skip)
+                FDPrimaryButton(title: enableTitle, action: enable)
                     .keyboardShortcut(.defaultAction)
             }
             Spacer()
@@ -180,52 +196,41 @@ struct OnboardingView: View {
     // MARK: Step 5 — recap the three gestures + start the first session NOW
 
     private var readyStep: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(spacing: 14) {
             Spacer()
-            Text("You're set")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .frame(maxWidth: .infinity)
+            Text("YOU'RE SET").font(FD.matrix(24)).foregroundStyle(.white)
 
-            VStack(alignment: .leading, spacing: 12) {
-                gestureRow(icon: "cursorarrow.click", title: "Click the orb", detail: "start a session")
-                gestureRow(icon: "hand.tap.fill", title: "Hold it", detail: "quick start with recent durations")
-                gestureRow(icon: "filemenu.and.cursorarrow", title: "Right-click", detail: "pause, exit, settings")
-            }
-            .padding(18)
-            .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 14))
-
-            VStack(spacing: 10) {
-                Button {
-                    onStartFirstSession(trimmedMission.isEmpty ? "Focus" : trimmedMission, minutes)
-                } label: {
-                    Text("Start my first session — \(minutes) min")
-                        .frame(maxWidth: .infinity)
+            FDInset {
+                VStack(alignment: .leading, spacing: 10) {
+                    gesture("cursorarrow.click", "CLICK", "start a session")
+                    gesture("hand.tap.fill", "HOLD", "quick start — recent durations")
+                    gesture("filemenu.and.cursorarrow", "RIGHT-CLICK", "stop, settings")
                 }
-                .buttonStyle(.borderedProminent).tint(Palette.green)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
-
-                if !trimmedMission.isEmpty {
-                    Text("Mission: \(trimmedMission)")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                Button("I'll start later", action: onFinish)
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                .frame(width: 280)
             }
+
+            FDPrimaryButton(title: "START FIRST SESSION — \(minutes) MIN", fullWidth: true) {
+                onStartFirstSession(trimmedMission.isEmpty ? "Focus" : trimmedMission, minutes)
+            }
+            .keyboardShortcut(.defaultAction)
+
+            if !trimmedMission.isEmpty {
+                Text("Mission: \(trimmedMission)")
+                    .font(.system(size: 10)).foregroundStyle(FD.label)
+            }
+            Button("I'll start later", action: onFinish)
+                .buttonStyle(.plain)
+                .font(.system(size: 10))
+                .foregroundStyle(FD.label)
             Spacer()
         }
     }
 
-    private func gestureRow(icon: String, title: String, detail: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundStyle(Palette.green)
-                .frame(width: 24)
-            Text(title).font(.system(size: 13, weight: .semibold))
-            Text("— \(detail)").font(.system(size: 13)).foregroundStyle(.secondary)
+    private func gesture(_ icon: String, _ name: String, _ detail: String) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon).font(.system(size: 12)).foregroundStyle(FD.lime).frame(width: 18)
+            Text(name).font(.system(size: 11, weight: .bold)).tracking(0.8).foregroundStyle(.white)
+            Text(detail).font(.system(size: 11)).foregroundStyle(FD.label)
         }
     }
 }
@@ -238,32 +243,34 @@ struct PermissionNudgeView: View {
     var onLater: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "person.fill.viewfinder")
-                .font(.system(size: 30))
-                .foregroundStyle(Palette.green)
-            Text("Camera makes Hyperfocus work")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+        VStack(spacing: 12) {
+            PixelIcon(pattern: PixelIcon.target, color: FD.amber, pixel: 3.0)
+            Text("CAMERA MAKES IT WORK").font(FD.matrix(18)).foregroundStyle(.white)
             Text("Presence detection is the core of Hyperfocus — it pauses your session when you leave and calls you back. Without camera access, sessions run as plain timers. Frames never leave your Mac.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .font(.system(size: 11)).foregroundStyle(FD.label)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 360)
-            HStack(spacing: 10) {
-                Button("Later", action: onLater).buttonStyle(.bordered)
+                .frame(maxWidth: 350)
+            HStack(spacing: 8) {
+                FDGhostButton(title: "Later", action: onLater)
                 if canPrompt {
-                    Button("Enable camera", action: onEnable)
-                        .buttonStyle(.borderedProminent).tint(Palette.green)
+                    FDPrimaryButton(title: "ENABLE CAMERA", action: onEnable)
                         .keyboardShortcut(.defaultAction)
                 } else {
-                    Button("Open System Settings…", action: onOpenSettings)
-                        .buttonStyle(.borderedProminent).tint(Palette.green)
+                    FDPrimaryButton(title: "OPEN SYSTEM SETTINGS", action: onOpenSettings)
                         .keyboardShortcut(.defaultAction)
                 }
             }
         }
         .padding(24)
         .frame(width: 430, height: 280)
-        .background(Color(red: 0.055, green: 0.065, blue: 0.09))
+        .background(
+            ZStack(alignment: .topLeading) {
+                LinearGradient(colors: [FD.deviceHi, FD.device], startPoint: .top, endPoint: .bottom)
+                FDDotGrid()
+                Circle().fill(FD.amber.opacity(0.15)).frame(width: 160, height: 160)
+                    .blur(radius: 60).offset(x: -40, y: -50)
+            }
+        )
         .preferredColorScheme(.dark)
     }
 }
@@ -282,11 +289,11 @@ private struct OrbClickDemo: View {
                 guard let clickedAt else { return 0 }
                 return min(1, now.timeIntervalSince(clickedAt) / 0.7)
             }()
-            RingToParticlesOrb(t: t, progress: p, diameter: 64,
+            RingToParticlesOrb(t: t, progress: p, diameter: 56,
                                brightness: 3.0 + (2.2 - 3.0) * p)
-                .frame(width: 150, height: 140)
+                .frame(width: 130, height: 120)
         }
-        .contentShape(Circle().inset(by: 18))
+        .contentShape(Circle().inset(by: 16))
         .onTapGesture {
             guard clickedAt == nil else { return }
             clickedAt = Date()

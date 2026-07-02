@@ -98,6 +98,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .tint(FD.lime)                        // FLIGHT DECK accent on toggles/sliders/pickers
+        .preferredColorScheme(.dark)
         .frame(width: 460, height: 560)
     }
 
