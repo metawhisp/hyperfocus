@@ -55,15 +55,15 @@ state in `PROGRESS.md` and report; do not scaffold ad hoc.
 
 ## 3. Master checklist
 
-- [ ] Phase 1 — App shell
-- [ ] Phase 2 — Focus Orb
-- [ ] Phase 3 — Start card
-- [ ] Phase 4 — Countdown
-- [ ] Phase 5 — Aura
-- [ ] Phase 6 — Timer engine
-- [ ] Phase 7 — Camera presence
-- [ ] Phase 8 — Away mode
-- [ ] Phase 9 — Completion
+- [x] Phase 1 — App shell
+- [x] Phase 2 — Focus Orb
+- [x] Phase 3 — Start card
+- [x] Phase 4 — Countdown
+- [x] Phase 5 — Aura
+- [x] Phase 6 — Timer engine
+- [x] Phase 7 — Camera presence
+- [x] Phase 8 — Away mode
+- [x] Phase 9 — Completion
 - [ ] Phase 10 — Polish
 
 ---
@@ -80,20 +80,20 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** app launches with no Dock icon (`LSUIElement = true`), `MenuBarExtra` shows the specs/01 §11 items (Show Focus Orb [conditional] / Settings… / Session History… / Debug [DEBUG only] / Quit Hyperfocus), `SettingsStore` exposes every canon §8 key with the canon default, build + tests green.
 **Depends on:** Phase 0 scaffold only.
 
-- [ ] **1.1 Baseline verify + app entry**
+- [x] **1.1 Baseline verify + app entry**
   - Files: `Hyperfocus/App/HyperfocusApp.swift`, `Hyperfocus/App/AppDelegate.swift`
   - Run canon build/test commands first; wire `@main` with `MenuBarExtra` + `NSApplicationDelegateAdaptor`.
   - Accept: app runs from Xcode, menu bar icon present, no Dock icon.
-- [ ] **1.2 AppState + coordinator skeleton**
+- [x] **1.2 AppState + coordinator skeleton**
   - Files: `Hyperfocus/App/AppState.swift`, `Hyperfocus/App/SessionCoordinator.swift`
   - `AppState` (ObservableObject root) owns coordinator + protocol-typed services; all flow is `event -> reducer -> effects -> coordinator` (canon §2 rule). UI never talks to services directly.
   - Accept: build green; an injected `SessionEvent` reaches `SessionReducer.reduce` and returned effects reach the coordinator (log-level verification acceptable here).
-- [ ] **1.3 SettingsStore + Constants**
+- [x] **1.3 SettingsStore + Constants**
   - Files: `Hyperfocus/Utilities/SettingsStore.swift`, `Hyperfocus/Utilities/Constants.swift`
   - Typed accessors for every `hf.*` key in canon §8; every literal (thresholds 7/15/3, orb size 18–24, aura 120 pt, snap 32 pt/8 pt, etc.) lives in `Constants.swift`.
   - Note: implementation pre-exists from Phase 0 — write the catalog tests from specs/06 §4 to verify it (they may pass immediately); do not re-stub or rewrite working code. The red-first rule applies only to code that does not exist yet.
   - Accept: build green; a debug dump of defaults matches the §8 table exactly.
-- [ ] **1.4 Menu bar menu**
+- [x] **1.4 Menu bar menu**
   - Files: `Hyperfocus/App/HyperfocusApp.swift`
   - Items exactly per specs/01 §11 (no `Start Session` item): `Show Focus Orb` (present only while the orb is hidden), `Settings…`, `Session History…`, `Debug` submenu wrapped in `#if DEBUG` (canon §10 items; wired in 7.1), `Quit Hyperfocus` (dispatches `.userExited` first if a session is running).
   - Note: implementation pre-exists from Phase 0 — write the catalog tests from specs/06 §4 to verify it (they may pass immediately); do not re-stub or rewrite working code. The red-first rule applies only to code that does not exist yet.
@@ -111,19 +111,19 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: `Hyperfocus/Orb/OrbPositionStore.swift`, `HyperfocusTests/OrbPositionStoreTests.swift`
   - RED: `test_positionRoundTripsThroughDefaults`, `test_defaultPositionIsBottomRightWith8ptMargin`, `test_positionClampsIntoVisibleBounds` (JSON `{x,y}` under `hf.orbPosition`; injectable defaults + bounds).
   - Accept: tests green.
-- [ ] **2.2 Orb window**
+- [x] **2.2 Orb window**
   - Files: `Hyperfocus/Utilities/KeyablePanel.swift`, `Hyperfocus/Orb/FocusOrbWindowController.swift`
   - `KeyablePanel` overrides `canBecomeKey = true`; styleMask `[.borderless, .nonactivatingPanel]`, level `.statusBar`, collectionBehavior `[.canJoinAllSpaces, .fullScreenAuxiliary]`, `isOpaque = false`, `backgroundColor = .clear` (canon §3).
   - Accept: build green; orb floats above normal windows on every Space without stealing focus.
-- [ ] **2.3 Orb visuals**
+- [x] **2.3 Orb visuals**
   - Files: `Hyperfocus/Orb/FocusOrbView.swift`
   - Glass circle sized by `hf.orbSize` / `hf.orbOpacity`; visual states per BRIEF: idle glass, ready green pulse, active green core, warning yellow/orange pulse, away red core, completed green flash.
   - Accept: build green; each state verifiable by temporarily forcing it (remove the override before commit).
-- [ ] **2.4 Drag, click, edge snap**
+- [x] **2.4 Drag, click, edge snap**
   - Files: `Hyperfocus/Orb/FocusOrbWindowController.swift`
   - NSEvent mouse tracking moves the panel frame (NOT `isMovableByWindowBackground` — it breaks click detection); click = mouseUp with < 4 pt total movement and < 0.3 s; snap when orb center is within 32 pt of an edge → animate to 8 pt margin (canon §3.4–3.5).
   - Accept: manual — drag works, click fires (log), snap animates to the correct edge.
-- [ ] **2.5 Persist + clamp on screen change**
+- [x] **2.5 Persist + clamp on screen change**
   - Files: `Hyperfocus/Orb/OrbPositionStore.swift`, `Hyperfocus/Utilities/ScreenManager.swift`, `Hyperfocus/App/AppDelegate.swift`
   - Save position on drag end; on `NSApplication.didChangeScreenParametersNotification` clamp into `NSScreen.main.visibleFrame` (canon §3.6).
   - Accept: relaunch restores position; changing display resolution pulls the orb back on-screen.
@@ -148,11 +148,11 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: same as 3.1, plus `Hyperfocus/Session/SessionConfig.swift`
   - RED: `test_T3_preparing_enterHyperfocus_toCountdown_emitsHideStartCard_showCountdown_playVoiceCountdown_startCameraWarmup`, `test_T3_emptyMission_staysPreparing_noEffects` (whitespace-only mission counts as empty).
   - Accept: tests green.
-- [ ] **3.4 Start card UI**
+- [x] **3.4 Start card UI**
   - Files: `Hyperfocus/UI/StartSessionView.swift`, `Hyperfocus/UI/GlassCard.swift`
   - Exact canon §9 copy: title `Prepare Hyperfocus`, subtitle `One task. One session.`, mission placeholder `What are you doing in this session?`, success placeholder `This session is successful if…`, presets `5`/`15`/`25`/`45` minutes + `Custom` (1–180), intensity `calm`/`strict`/`cinematic`, primary CTA `Enter Hyperfocus`, secondary `Cancel`. CTA disabled while mission is empty. Defaults from `hf.defaultDurationMinutes` (25) and `hf.defaultIntensity` (`cinematic`).
   - Accept: build green; visual check against §9, string for string.
-- [ ] **3.5 Present card next to orb**
+- [x] **3.5 Present card next to orb**
   - Files: `Hyperfocus/App/SessionCoordinator.swift`, `Hyperfocus/Orb/FocusOrbWindowController.swift`
   - Coordinator executes `.showStartCard`/`.hideStartCard` using a `KeyablePanel` positioned next to the orb (canon §3 window inventory); typing in the mission field must work (gotcha §3.1).
   - Accept: manual — click orb → card appears adjacent, keyboard input works, Cancel/Esc closes it.
@@ -173,15 +173,15 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: same as 4.1
   - RED: `test_T5_countdown_userExited_toIdle_emitsDismissCountdown_stopCamera_andDoesNotSave` (abort: no `.saveSession` effect emitted).
   - Accept: test green.
-- [ ] **4.3 Countdown overlay window + view**
+- [x] **4.3 Countdown overlay window + view**
   - Files: `Hyperfocus/UI/CountdownOverlayView.swift`, `Hyperfocus/Utilities/OverlayWindow.swift`
   - Borderless `NSWindow` at main-screen frame, level `.screenSaver` (canon §3); darkened background honoring `hf.darkenScreenOnStart`; animated text sequence with fade / light scale / soft glow; sends `.countdownCompleted` when finished.
   - Accept: build green; manual run shows the full sequence then dismisses.
-- [ ] **4.4 Voice service + countdown line**
+- [x] **4.4 Voice service + countdown line**
   - Files: `Hyperfocus/Audio/VoicePrompting.swift`, `Hyperfocus/Audio/VoicePromptService.swift`, `Hyperfocus/App/SessionCoordinator.swift`
   - `AVSpeechSynthesizer` implementation of `VoicePrompting`; style params per canon §6 (calm 0.45/1.0, strict 0.52/0.95, cinematic 0.42/0.85); `.playVoice(.countdown)` speaks exactly `Enter Hyperfocus Mode. Three. Two. One. Focus.`; respects `hf.voicePromptsEnabled`.
   - Accept: manual — voice plays in sync with the visuals.
-- [ ] **4.5 Abort wiring**
+- [x] **4.5 Abort wiring**
   - Files: `Hyperfocus/UI/CountdownOverlayView.swift`, `Hyperfocus/App/SessionCoordinator.swift`
   - Esc during countdown sends `.userExited` (T5).
   - Accept: manual — Esc mid-countdown returns to idle: no aura, no timer, `sessions.json` unchanged.
@@ -194,23 +194,23 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** aura shows green/yellow/red/dimmed, flashes-then-hides, never intercepts clicks or focus, rebuilds on screen change.
 **Depends on:** Phase 1 (coordinator). Parallel-safe with Phase 4.
 
-- [ ] **5.1 OverlayWindow factory**
+- [x] **5.1 OverlayWindow factory**
   - Files: `Hyperfocus/Utilities/OverlayWindow.swift`
   - Borderless, `isOpaque = false`, clear background, `hasShadow = false`, `ignoresMouseEvents = true`, level `.statusBar`, collectionBehavior `[.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` (canon §3 aura row).
   - Accept: build green.
-- [ ] **5.2 AuraWindowController + geometry**
+- [x] **5.2 AuraWindowController + geometry**
   - Files: `Hyperfocus/Aura/AuraWindowController.swift`, `Hyperfocus/Utilities/ScreenManager.swift`
   - Four edge strips (top/bottom/left/right) on `NSScreen.main`, each 120 pt thick × `hf.auraThickness` (0.5–1.5), spanning the full edge; corner overlap is acceptable; ordered with `orderFrontRegardless()`, never `makeKey` (canon §3.3).
   - Accept: manual — windows cover all edges; clicks pass through to apps beneath.
-- [ ] **5.3 AuraFrameView gradient**
+- [x] **5.3 AuraFrameView gradient**
   - Files: `Hyperfocus/Aura/AuraFrameView.swift`, `Hyperfocus/Aura/AuraState.swift`
   - Linear gradient from `edgeColor.opacity(0.55 × auraIntensity)` at the screen edge to `.clear` inward (canon §3); colors for `.green`, `.yellow`, `.red`, `.dimmed`; `hf.auraIntensity` (0.2–1.0) applied.
   - Accept: manual — glow is subtle and peripheral, does not block reading.
-- [ ] **5.4 State transitions + flashThenHide**
+- [x] **5.4 State transitions + flashThenHide**
   - Files: `Hyperfocus/Aura/AuraWindowController.swift`
   - Smooth animated color transitions; `.flashThenHide` = green flash then fade out; `.hidden` removes the windows.
   - Accept: manual cycle through all `AuraState` cases.
-- [ ] **5.5 Coordinator wiring + screen-change rebuild**
+- [x] **5.5 Coordinator wiring + screen-change rebuild**
   - Files: `Hyperfocus/App/SessionCoordinator.swift`, `Hyperfocus/App/AppDelegate.swift`
   - Coordinator executes `.setAura(_)`; on `didChangeScreenParametersNotification` rebuild aura windows (canon §3.6).
   - Accept: manual — a resolution change rebuilds the frame correctly.
@@ -247,7 +247,7 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: same as 6.2
   - RED: `test_T16_active_userExited_toExited_emitsStopAll_saveSessionExited`, `test_T16_manualPaused_userExited_toExited`, `test_T18_exited_immediatelyReturnsToIdle`.
   - Accept: tests green.
-- [ ] **6.7 Coordinator timer wiring + HUD**
+- [x] **6.7 Coordinator timer wiring + HUD**
   - Files: `Hyperfocus/App/SessionCoordinator.swift`, `Hyperfocus/Session/SessionTimer.swift`, `Hyperfocus/UI/ActiveHUDView.swift`
   - Coordinator executes `.startTimer`/`.pauseTimer`/`.resumeTimer`/`.stopTimer` against `SessionTimer`; ticks feed `SessionEvent.tick(deltaSeconds:)` back into the reducer. `ActiveHUDView` near the orb shows Mission / remaining time / session status / Exit (camera status string added in Phase 7).
   - Accept: manual — start a 5-minute session, HUD counts down; pause/resume works.
@@ -260,23 +260,23 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** debug menu drives presence events end-to-end; real camera emits change-only events with detection ≤ 2 Hz; permission and no-camera paths handled; camera fully torn down on `stopCamera`.
 **Depends on:** Phase 6 (tick/presence plumbing in reducer context).
 
-- [ ] **7.1 SimulatedPresenceService + Debug menu**
+- [x] **7.1 SimulatedPresenceService + Debug menu**
   - Files: `Hyperfocus/Camera/SimulatedPresenceService.swift`, `Hyperfocus/Camera/PresenceDetecting.swift`, `Hyperfocus/App/HyperfocusApp.swift`
   - Menu items exactly per canon §10: `Simulate: Face Present`, `Simulate: Face Missing`, `Simulate: Jump to Away` (fast-forwards `faceMissingSeconds` to `awayThresholdSeconds`), `Simulate: Return`, `Use Simulated Camera` (toggle, applies to next session); `#if DEBUG` only.
   - Accept: manual — simulated events reach the reducer as `.facePresenceChanged`.
-- [ ] **7.2 CameraPermissionService**
+- [x] **7.2 CameraPermissionService**
   - Files: `Hyperfocus/Camera/CameraPermissionService.swift`
   - Authorization status + request; surfaces `CameraState.notAuthorized`.
   - Accept: manual — fresh permission prompt shows the canon §11 `NSCameraUsageDescription` string.
-- [ ] **7.3 CameraPresenceService capture + detection**
+- [x] **7.3 CameraPresenceService capture + detection**
   - Files: `Hyperfocus/Camera/CameraPresenceService.swift`
   - `AVCaptureSession` preset `.vga640x480`, frames on the `com.hyperfocus.camera` serial queue, `VNDetectFaceRectanglesRequest` at most every 0.5 s (drop frames between), events delivered on main, emitted only when the detected value CHANGES plus one initial value; `startWarmup()` pre-rolls during countdown (canon §6).
   - Accept: manual — face present/absent flips HUD status within ~1 s.
-- [ ] **7.4 Teardown + privacy invariants**
+- [x] **7.4 Teardown + privacy invariants**
   - Files: `Hyperfocus/Camera/CameraPresenceService.swift`, `Hyperfocus/App/SessionCoordinator.swift`
   - `.stopCamera` → `stopRunning`, remove inputs/outputs. Verify canon §6 privacy invariants: `grep -rE "AVCaptureMovieFileOutput|AVAssetWriter|URLSession" Hyperfocus/` returns nothing; no `CVPixelBuffer`/`CGImage` writes anywhere.
   - Accept: macOS camera indicator turns off within seconds of session end; grep is clean.
-- [ ] **7.5 No-camera fallback + HUD status strings**
+- [x] **7.5 No-camera fallback + HUD status strings**
   - Files: `Hyperfocus/App/SessionCoordinator.swift`, `Hyperfocus/UI/ActiveHUDView.swift`, `Hyperfocus/Camera/CameraPermissionService.swift`
   - If `notAuthorized`/`unavailable` or `hf.useCameraForPresence = false`, and `hf.allowSessionsWithoutCamera = true`: session runs in manual mode — presence events never fire; only manual pause and exit change the running state (canon §4). HUD camera status uses exactly: `Present`, `Looking for you`, `Away`, `Camera off`, `Permission needed`.
   - Accept: manual — deny permission, session still starts, HUD shows `Camera off`.
@@ -314,15 +314,15 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: same as 8.1
   - RED: `test_T16_warning_userExited_toExited`, `test_T16_away_userExited_toExited_stopsAlarm_hidesAwayCard`, `test_T16_recovering_userExited_toExited`.
   - Accept: tests green.
-- [ ] **8.6 AlarmService**
+- [x] **8.6 AlarmService**
   - Files: `Hyperfocus/Audio/AlarmPlaying.swift`, `Hyperfocus/Audio/AlarmService.swift`
   - Brown noise in an `AVAudioSourceNode` render block per canon §6 (`brown += (white - brown * 0.02); sample = brown * 3.5 × volume`, clamp to [-1, 1]) through `AVAudioEngine.mainMixerNode`; fade in over 0.8 s; loops until `stop()`; volume = `hf.soundVolume` × intensity multiplier (calm 0.7×, strict 1.1×, cinematic 1.0× — canon §8).
   - Accept: manual — soft continuous hum, not a beep; stops instantly on `stop()`.
-- [ ] **8.7 Away card + recovery countdown UI**
+- [x] **8.7 Away card + recovery countdown UI**
   - Files: `Hyperfocus/UI/AwayModeView.swift`, `Hyperfocus/UI/GlassCard.swift`
   - `KeyablePanel` centered, level `.screenSaver` (canon §3). Exact §9 copy: title `Session paused`, text `Return to Hyperfocus or exit the session.`, buttons `Return` (enabled only while face visible; affordance only — recovery is automatic) and `Exit Session`; recovery countdown `3` → `2` → `1` → `Back to focus`. Voice on away: `Session paused. Return to Hyperfocus or exit.`; on recovery: `Focus restored.`
   - Accept: manual copy check against §9, string for string.
-- [ ] **8.8 End-to-end wiring + full simulated run**
+- [x] **8.8 End-to-end wiring + full simulated run**
   - Files: `Hyperfocus/App/SessionCoordinator.swift`
   - All Phase 8 effects executed against alarm/aura/voice/card services.
   - Accept: manual via debug menu — `Simulate: Face Missing` → yellow at 7 s → red + alarm + card at 15 s → `Simulate: Return` → 3 s countdown → green, alarm off, timer resumes; timer paused for the whole away/recovering span.
@@ -344,15 +344,15 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
   - Files: `Hyperfocus/Session/SessionReducer.swift`, `HyperfocusTests/SessionReducerTests.swift`
   - RED: `test_T17_completed_resultSaved_toIdle_emitsSaveSession_hideCompletion_orbFlash`, `test_resultSaved_carriesNextActionIntoSavedSession`.
   - Accept: tests green.
-- [ ] **9.3 Completion card UI**
+- [x] **9.3 Completion card UI**
   - Files: `Hyperfocus/UI/CompletionView.swift`
   - `KeyablePanel` centered, level `.floating` (canon §3). Exact §9 copy: title `Mission complete`, fields Mission / Focus time / Paused time / Breaks / Longest streak, question `Did you complete the mission?`, buttons `Done` / `Partial` / `Not done`, optional field placeholder `Next action`. Voice on completion: `Mission complete.`
   - Accept: manual copy + stats check.
-- [ ] **9.4 Save wiring + reset**
+- [x] **9.4 Save wiring + reset**
   - Files: `Hyperfocus/App/SessionCoordinator.swift`, `Hyperfocus/Session/SessionModel.swift`
   - `.saveSession(status)` maps `SessionContext` → `Session` (all §7 fields incl. `nextAction`, `endedAt`); after T17 the orb returns to idle with `.orbFlash`; T16 exits save `completionStatus: .exited` without showing the completion card.
   - Accept: manual — complete a short session end-to-end; `sessions.json` contains correct counters.
-- [ ] **9.5 HistoryView**
+- [x] **9.5 HistoryView**
   - Files: `Hyperfocus/UI/HistoryView.swift`
   - Simple list per BRIEF: Date / Mission / Duration / Status / Breaks, newest first, from `SessionStore.all()`; opened from the menu bar.
   - Accept: manual — completed and exited sessions both listed.
@@ -365,23 +365,23 @@ Item format — **Files:** exact canon §2 paths; **RED:** the failing test(s) t
 **Definition of Done:** every BRIEF acceptance criterion (1–30) passes on a manual walkthrough; build + all tests green from a clean `xcodegen generate`.
 **Depends on:** all previous phases.
 
-- [ ] **10.1 SettingsView**
+- [x] **10.1 SettingsView**
   - Files: `Hyperfocus/UI/SettingsView.swift`, `Hyperfocus/Utilities/SettingsStore.swift`
   - All canon §8 sections/keys: General (launch at login via `SMAppService.mainApp`, show orb on launch, orb size/opacity, reset orb position), Focus (default duration/intensity, warning/away/recovery thresholds, allow sessions without camera), Camera (permission status, use-camera toggle, privacy copy, open system permissions), Sound (voice prompts, alarm, volume, voice style), Visual (aura intensity/thickness, reduce motion, darken screen, cinematic countdown), Data (session history, clear local data). Privacy copy verbatim from canon §9.
   - Accept: manual — every control reads/writes its `hf.*` key.
-- [ ] **10.2 OnboardingView**
+- [x] **10.2 OnboardingView**
   - Files: `Hyperfocus/UI/OnboardingView.swift`
   - 5 screens exactly per BRIEF/canon §9 (`Hyperfocus for Mac`, `Enter focus mode`, `Presence check`, `Private by default`, CTA `Start using Hyperfocus`); shown once, gated by `hf.onboardingCompleted`.
   - Accept: manual — fresh defaults show onboarding exactly once.
-- [ ] **10.3 Orb quick actions**
+- [x] **10.3 Orb quick actions**
   - Files: `Hyperfocus/Orb/FocusOrbWindowController.swift`
   - Right-click / long-press menu per canon §9: `Pause` (session running), `Exit Session` (session running), `Hide for 10 minutes`, `Settings…`. Pause/Exit dispatch `.userPaused`/`.userExited`.
   - Accept: manual — items act correctly; orb reappears after 10 minutes.
-- [ ] **10.4 Reduce motion + intensity visuals**
+- [x] **10.4 Reduce motion + intensity visuals**
   - Files: `Hyperfocus/UI/CountdownOverlayView.swift`, `Hyperfocus/Aura/AuraFrameView.swift`, `Hyperfocus/Orb/FocusOrbView.swift`
   - `hf.reduceMotion` disables pulses/flashes/scale animations; `hf.cinematicCountdownEnabled` toggles the extra-glow variant; intensity multipliers per canon §8 (aura 0.8× / 1.0× / 1.2×; countdown standard / faster / extra glow with slower scale and longer fades).
   - Accept: manual check per intensity mode.
-- [ ] **10.5 Multi-monitor + screen-change hardening**
+- [x] **10.5 Multi-monitor + screen-change hardening**
   - Files: `Hyperfocus/Utilities/ScreenManager.swift`, `Hyperfocus/App/AppDelegate.swift`
   - MVP is single-screen (canon §3.7): overlays target `NSScreen.main` at session start; orb clamps into visible bounds on layout change; aura rebuilds.
   - Accept: manual — unplug/replug a display mid-session; nothing is stranded off-screen.

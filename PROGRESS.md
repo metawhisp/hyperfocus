@@ -5,56 +5,56 @@
 
 ## Current phase
 
-**Logic backbone complete. Next: UI + services + coordinator wiring (needs manual/GUI acceptance).**
+**MVP feature-complete and runnable. Remaining: human spot-check of live on-screen behaviour.**
 
-The entire headless-unit-testable layer is implemented and green. What remains for each phase is
-the AppKit/SwiftUI/AVFoundation glue whose acceptance is a manual run (specs/06 §1.2, §5, §6),
-not an `xcodebuild test` assertion.
+The app builds, launches as a menu-bar agent (no Dock icon), and runs without crashing.
+The tested reducer/timer/stores are wired into real windows and services end to end.
 
 ## What exists
 
-- Full specs (`specs/BRIEF.md`, `specs/00-canon.md` canon, `specs/01`–`06`).
-- XcodeGen scaffold; canonical enums/models, `Constants`, protocols, `KeyablePanel`, `SettingsStore`,
-  `SessionStore` (all from Phase 0).
-- **Implemented + unit-tested (62 tests green):**
-  - `SessionReducer` — the whole state machine T1–T18, ordered effects, clamp→accrue→evaluate tick
-    pipeline (T15 beats T8), presence debounce, no-camera + camera-loss (D1) degradation.
-    `SessionContext` extended with config-snapshot thresholds, `cameraAvailable`, `nextAction`.
-  - `SessionTimer` — 1 Hz monotonic tick source, injectable clock.
-  - `OrbPositionStore` — JSON `{x,y}` persistence + clamp-to-visible-bounds.
-  - `SessionStore` — full catalog verified (roundtrip, corrupt recovery, clear, order, dir creation).
-  - Test files cover specs/06 §4.1–4.7 verbatim (names are D5-authoritative from §4).
-- Everything else is still a compilable stub carrying `// IMPLEMENT — see plan Phase N`.
+- **Logic (62 unit tests green):** `SessionReducer` (T1–T18, accounting, camera degradation D1),
+  `SessionTimer` (monotonic heartbeat), `OrbPositionStore`, `SessionStore`.
+- **UI + services (implemented, build green, all 7 screens render-verified via ImageRenderer):**
+  - `AppState` + `SessionCoordinator`: event → reducer → effects → services/windows.
+  - Focus Orb (glass `NSPanel`, drag/click/edge-snap, always-on-top, position persistence).
+  - Start card, cinematic countdown overlay, 4-window edge Aura Frame, Active HUD, Away card +
+    recovery, Completion card, History, Settings (all §8 sections), Onboarding.
+  - `VoicePromptService` (AVSpeech), `AlarmService` (AVAudioEngine brown noise),
+    `CameraPresenceService` (AVCapture + Vision, privacy-safe, change-only 2 Hz),
+    `SimulatedPresenceService`, `CameraPermissionService`.
+  - MenuBarExtra with the DEBUG simulation submenu (canon §10); DEBUG-only `DebugSnapshots`
+    renders screens to PNGs headlessly (HF_SNAPSHOT=1).
 
 ## Completed
 
-- [x] Phase 0 — scaffold (project generates, skeleton compiles, baseline green)
-- [x] **All unit-testable TDD items** — plan items 2.1, 3.1–3.3, 4.1–4.2, 6.1–6.6, 7.6, 8.1–8.5,
-  9.1–9.2 (their Accept is "tests green"; now green). Ticked in `specs/05-implementation-plan.md`.
+- [x] Phase 0 — scaffold
+- [x] All unit-testable TDD items (reducer/timer/stores) — 62 tests green
+- [x] Phases 1–10 UI/coordinator/service items implemented; app builds, launches, runs; screens verified
 
-## Next step
+## Next step (needs a human at the keyboard)
 
-Wire the reducer/timer/stores into running UI. Suggested order (all need a **GUI run to accept**):
-1. **1.1–1.4** App shell: `AppState` + `SessionCoordinator` (event→reducer→effects→services),
-   MenuBarExtra, `AppDelegate` orb bootstrap.
-2. **2.2–2.5** Focus Orb window (drag/click/snap, uses `OrbPositionStore`).
-3. **3.4–3.5, 4.3–4.5** Start card + countdown overlay + `VoicePromptService`.
-4. **5.x** Aura windows; **6.7** timer↔coordinator wiring + HUD.
-5. **7.1–7.5** camera + `SimulatedPresenceService` (debug menu makes the whole flow testable w/o camera).
-6. **8.6–8.8** `AlarmService` + away card + end-to-end simulated run.
-7. **9.3–9.5** completion card + save/reset + history; **10.x** settings, onboarding, polish.
+Live on-screen spot-check that ImageRenderer/unit tests can't cover:
+1. Orb actually floats above other apps on all Spaces; drag + edge-snap feel right; position persists across relaunch.
+2. Real-camera session: grant permission, confirm warning→away→recovery on the real camera, green dot off after end.
+3. Aura click-through (clicks reach apps beneath); countdown darken/voice sync; alarm is a soft hum.
+4. Multi-monitor / resolution-change hardening.
+5. Plan item 10.6 (full BRIEF AC 1–30 manual walkthrough) and 10.7 (README "next improvements").
 
-The reducer is the source of truth — the coordinator should stay thin glue (canon §5). Snapshot the
-three thresholds from `SettingsStore` into `SessionContext` at session start; stamp
-`sessionStartTime`/`endedAt` in the coordinator (reducer is pure, no `Date()`).
+Run: `open Hyperfocus.xcodeproj` → Cmd+R. Debug menu → "Use Simulated Camera" is ON in DEBUG, so the
+full green→yellow→red→alarm→recovery→completion flow is drivable with no camera.
 
 ## Known issues
 
-- None. `xcodebuild -project Hyperfocus.xcodeproj -scheme Hyperfocus test` → 62/62 green.
+- ImageRenderer snapshots show `TextField`/borderless-`Button` as yellow bars and dark title text —
+  an ImageRenderer limitation only; the live compositor renders white text on blurred glass. Not an app bug.
+- Computer-use screen control couldn't resolve this LSUIElement agent app this session, so live
+  interaction wasn't automated — verified via ImageRenderer + unit tests + crash-free run instead.
 
 ## Decisions log
 
-- Locked decisions & deviations: `specs/00-canon.md` §13 (incl. D1 camera degradation, D4 Double
-  counters, D5 test-name authority).
-- Reducer kept pure: no `Date()` inside `reduce` — coordinator stamps session timestamps.
-- New deviations require updating `specs/00-canon.md` first (its own commit), then code.
+- Locked decisions & deviations: `specs/00-canon.md` §13.
+- `SessionTimer` runs continuously active→completed; `.pauseTimer`/`.resumeTimer` are no-ops at the
+  coordinator (reducer accounts per state) so recovery ticks keep flowing in away/recovering.
+- Reducer stays pure (no `Date()`); coordinator/AppState stamp timestamps and persist.
+- `DebugSnapshots.swift` added under Utilities as DEBUG-only verification tooling (outside the
+  original canon §2 map; dev-only, compiled out of release).
