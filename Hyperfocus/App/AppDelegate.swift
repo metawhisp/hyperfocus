@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ReadyCardPreviewWindow.show()   // READY? card — CUSTOM swaps in place
             return
         }
+        if ProcessInfo.processInfo.environment["HF_CHIPS_PREVIEW"] == "1" {
+            QuickStartPreviewWindow.show()  // quick-start chip styles; user picks before prod
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
