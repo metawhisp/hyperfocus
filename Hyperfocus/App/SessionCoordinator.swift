@@ -87,6 +87,7 @@ final class SessionCoordinator {
     private func requestExitConfirmation() {
         guard let app = appState, app.context.state.isRunning, exitConfirmPanel == nil else { return }
         aura.setState(.red)   // everything turns red while the question is up
+        aura.setAlert(true)   // …and the frame flares wider/brighter until the user answers
         let view = ExitConfirmView(
             onStay: { [weak self] in self?.dismissExitConfirm(restoreAura: true) },
             onExit: { [weak self] in
@@ -103,6 +104,7 @@ final class SessionCoordinator {
     private func dismissExitConfirm(restoreAura: Bool) {
         exitConfirmPanel?.orderOut(nil)
         exitConfirmPanel = nil
+        aura.setAlert(false)   // the question is answered either way — back to the normal band
         if restoreAura, let state = appState?.context.state {
             aura.setState(Self.auraState(for: state))
         }

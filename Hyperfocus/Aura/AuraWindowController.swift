@@ -46,6 +46,12 @@ final class AuraWindowController {
         }
     }
 
+    /// Alert emphasis while the exit-confirmation question is up: the red frame gets
+    /// noticeably wider, softer and brighter, then returns to normal.
+    func setAlert(_ on: Bool) {
+        model.boost = on ? 1.9 : 1.0
+    }
+
     /// Rebuild for the current main-screen geometry (canon §3.6 screen-change handling).
     func rebuildWindows() {
         let wasVisible = model.visible

@@ -27,6 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             HUDPreviewWindow.show()       // progress-bar variants; user picks before prod
             return
         }
+        if ProcessInfo.processInfo.environment["HF_MINI_PREVIEW"] == "1" {
+            MiniTimerPreviewWindow.show() // HUD collapse-to-orb demo; user approves before prod
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }

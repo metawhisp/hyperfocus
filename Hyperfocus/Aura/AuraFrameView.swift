@@ -13,6 +13,8 @@ final class AuraModel: ObservableObject {
     @Published var edgeOpacity: Double = 0.24     // base alpha (kept faint; the stroke concentrates it)
     @Published var thickness: Double = 1.0        // hf.auraThickness multiplier
     @Published var reduceMotion = false
+    /// Alert emphasis (exit confirmation): widens the band and blur, pushes alpha up.
+    @Published var boost: Double = 1.0
 }
 
 struct AuraFrameView: View {
@@ -23,18 +25,19 @@ struct AuraFrameView: View {
                                 paused: !model.visible || model.reduceMotion)) { tl in
             let t = tl.date.timeIntervalSinceReferenceDate
             let breathe = model.reduceMotion ? 1.0 : 0.92 + 0.08 * sin(t * 0.7)   // A1: near-steady
-            let line = 12.0 * model.thickness
+            let line = 12.0 * model.thickness * model.boost
             // The stroke concentrates light into a thin band, so it can run brighter than the old
             // wide gradient at the same setting (capped at 1).
-            let alpha = min(1.0, model.edgeOpacity * 3.0) * breathe
+            let alpha = min(1.0, model.edgeOpacity * 3.0 * model.boost) * breathe
             Rectangle()
                 .strokeBorder(model.color, lineWidth: line)
-                .blur(radius: 18 * model.thickness)   // bleeds inward; screen edge stays brightest
+                .blur(radius: 18 * model.thickness * model.boost)   // bleeds inward; edge brightest
                 .opacity(alpha)
         }
         .opacity(model.visible ? 1 : 0)
         .animation(.easeInOut(duration: 0.5), value: model.visible)
         .animation(.easeInOut(duration: 0.5), value: model.color)
+        .animation(.easeInOut(duration: 0.35), value: model.boost)
         .ignoresSafeArea()
         .allowsHitTesting(false)
     }
