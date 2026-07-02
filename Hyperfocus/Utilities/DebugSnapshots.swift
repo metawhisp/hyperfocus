@@ -21,8 +21,8 @@ enum DebugSnapshots {
         snap(FocusOrbView().environmentObject(previewApp(mission: "x", remaining: 100, state: .active)),
              "orb_active", dir, CGSize(width: 96, height: 96))
 
-        snap(StartSessionView(onStart: { _ in }, onCancel: {}).environmentObject(app),
-             "start_card", dir, CGSize(width: 392, height: 470))
+        snap(StartSessionView(onStart: { _ in }, onCancel: {}, onSuggest: { nil }).environmentObject(app),
+             "start_card", dir, CGSize(width: 430, height: 420))
 
         snap(CountdownPreview(), "countdown", dir, CGSize(width: 620, height: 360))
 
@@ -39,11 +39,14 @@ enum DebugSnapshots {
         snap(AwayModeView(onReturn: {}, onExit: {}).environmentObject(app),
              "away_card", dir, CGSize(width: 360, height: 240))
 
-        snap(CompletionView(onResult: { _, _ in })
+        snap(CompletionView(unlocks: [Achievement(id: "laser_mind", title: "LASER MIND",
+                                                  detail: "zero drifts", icon: "bolt",
+                                                  unlockedAt: Date())],
+                            onResult: { _ in })
                 .environmentObject(previewApp(mission: "Write landing page draft",
                                               remaining: 0, state: .completed,
                                               focus: 1500, paused: 96, breaks: 2, streak: 615)),
-             "completion_card", dir, CGSize(width: 384, height: 440))
+             "completion_card", dir, CGSize(width: 430, height: 500))
 
         for i in 0..<5 {
             snap(OnboardingView(requestCamera: { $0(true) }, requestScreen: { $0(true) },

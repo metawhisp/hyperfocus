@@ -35,6 +35,9 @@ enum Constants {
         static let soundVolume = "hf.soundVolume"
         static let voiceStyle = "hf.voiceStyle"
         static let voicePersona = "hf.voicePersona"
+        static let focusSoundEnabled = "hf.focusSoundEnabled"
+        static let focusSoundMode = "hf.focusSoundMode"
+        static let focusSoundVolume = "hf.focusSoundVolume"
         static let auraIntensity = "hf.auraIntensity"
         static let auraThickness = "hf.auraThickness"
         static let reduceMotion = "hf.reduceMotion"
@@ -63,6 +66,9 @@ enum Constants {
         static let soundVolume: Double = 0.5
         static let voiceStyle: VoiceStyle = .calm
         static let voicePersona: VoicePersona = .caspian
+        static let focusSoundEnabled = true
+        static let focusSoundMode: FocusSoundMode = .brown   // speaker-safe default
+        static let focusSoundVolume: Double = 0.35
         static let auraIntensity: Double = 0.7      // range 0.2–1.0
         static let auraThickness: Double = 1.0      // range 0.5–1.5, multiplier on Aura.baseThickness
         static let reduceMotion = false

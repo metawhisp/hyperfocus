@@ -6,17 +6,20 @@ struct NudgeView: View {
     let mission: String
 
     var body: some View {
-        GlassCard(width: 300) {
+        FDCard(width: 300, glow: FD.amber) {
             HStack(spacing: 12) {
-                Circle().fill(Palette.amber).frame(width: 8, height: 8)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Still on it?")
-                        .font(.system(size: 13, weight: .semibold))
+                PixelIcon(pattern: PixelIcon.bolt, color: FD.amber)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("STILL ON IT?")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1.5)
+                        .foregroundStyle(FD.amber)
                     Text("Back to: \(mission)")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(FD.label)
                         .lineLimit(1)
                 }
+                Spacer(minLength: 0)
             }
         }
     }

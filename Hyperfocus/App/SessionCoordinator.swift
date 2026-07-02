@@ -17,6 +17,7 @@ final class SessionCoordinator {
     // Services
     private let voice: VoicePrompting = VoicePromptService()
     private let alarm: AlarmPlaying = AlarmService()
+    private let focusSound = FocusSoundService()
     private let simulated = SimulatedPresenceService()
     private let permission = CameraPermissionService()
     private let screenPermission = ScreenAnalysisPermissionService()
@@ -198,9 +199,10 @@ final class SessionCoordinator {
         case .showCountdown:            showCountdown()
         case .dismissCountdown:         dismiss(&countdownWindow)
         case .setAura(let state):       aura.setState(state)
-        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis()
-        case .pauseTimer, .resumeTimer: break   // SessionTimer is a continuous heartbeat; the reducer accounts per state
-        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false)
+        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); startFocusSound()
+        case .pauseTimer:               focusSound.stop()      // away: the alarm owns the soundscape
+        case .resumeTimer:              startFocusSound()
+        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop()
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil
@@ -210,7 +212,7 @@ final class SessionCoordinator {
         case .showAwayCard:             dismissExitConfirm(restoreAura: false); showAwayCard()
         case .hideAwayCard:             dismiss(&awayPanel)
         case .showRecoveryCountdown, .hideRecoveryCountdown: break   // AwayModeView reacts to state == .recovering
-        case .showCompletion:           showCompletion()
+        case .showCompletion:           appState?.evaluateAchievementsOnCompletion(); showCompletion()
         case .hideCompletion:           dismiss(&completionPanel)
         case .saveSession(let status):  appState?.persist(status)
         case .orbFlash:                 break   // FocusOrbView reacts to the state change to .idle
@@ -339,6 +341,11 @@ final class SessionCoordinator {
         }
     }
 
+    private func startFocusSound() {
+        guard settings.focusSoundEnabled else { return }
+        focusSound.start(mode: settings.focusSoundMode, volume: Float(settings.focusSoundVolume))
+    }
+
     private func alarmVolume() -> Float {
         let base = Float(settings.soundVolume)
         let mult = Float(Constants.IntensityTuning.alarmVolumeMultiplier(
@@ -352,7 +359,8 @@ final class SessionCoordinator {
         guard startPanel == nil, let app = appState else { return }
         let view = StartSessionView(
             onStart: { [weak self] config in self?.appState?.send(.enterHyperfocus(config)) },
-            onCancel: { [weak self] in self?.appState?.send(.cancelPreparing) }
+            onCancel: { [weak self] in self?.appState?.send(.cancelPreparing) },
+            onSuggest: { [weak self] in self?.appState?.screenContext.suggestMission() }
         )
         let panel = makeCardPanel(view, app: app, level: .statusBar)
         placeNearOrb(panel)
@@ -411,9 +419,11 @@ final class SessionCoordinator {
 
     private func showCompletion() {
         guard completionPanel == nil, let app = appState else { return }
-        let view = CompletionView(onResult: { [weak self] status, next in
-            self?.appState?.send(.resultSaved(status, nextAction: next))
-        })
+        let view = CompletionView(
+            unlocks: app.lastUnlocks,
+            onResult: { [weak self] status in
+                self?.appState?.send(.resultSaved(status, nextAction: nil))
+            })
         let panel = makeCardPanel(view, app: app, level: .floating)
         center(panel)
         completionPanel = panel
@@ -422,20 +432,16 @@ final class SessionCoordinator {
     }
 
     private func showOrbQuickActions(_ event: NSEvent) {
+        // No Pause in Hyperfocus (canon #29): you either keep going or you STOP — pausing is losing.
         let menu = NSMenu()
-        let running = appState?.context.state.isRunning ?? false
-        if appState?.context.state == .active {
-            menu.addItem(withTitle: Constants.Copy.orbActionPause, action: #selector(quickPause), keyEquivalent: "").target = self
-        }
-        if running {
-            menu.addItem(withTitle: Constants.Copy.orbActionExitSession, action: #selector(quickExit), keyEquivalent: "").target = self
+        if appState?.context.state.isRunning ?? false {
+            menu.addItem(withTitle: "Stop Hyperfocus…", action: #selector(quickExit), keyEquivalent: "").target = self
         }
         menu.addItem(withTitle: Constants.Copy.orbActionSettings, action: #selector(quickSettings), keyEquivalent: "").target = self
         NSMenu.popUpContextMenu(menu, with: event, for: orb.contentViewForMenu ?? NSView())
     }
 
-    @objc private func quickPause() { appState?.send(.userPaused) }
-    @objc private func quickExit() { appState?.send(.userExited) }
+    @objc private func quickExit() { requestExitConfirmation() }
     @objc private func quickSettings() { showSettings() }
 
     // MARK: Window helpers

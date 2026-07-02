@@ -191,3 +191,298 @@ struct HFPressStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
+
+// MARK: — FLIGHT DECK (production design, user-approved; specs/07 v2, canon #29)
+// Hardware-gadget language: dot-matrix display type (Doto), warm charcoal device cards with a
+// dot-grid texture and corner glow bleed, acid-lime glowing progress, amber LED caps, pixel badges.
+
+enum FD {
+    static let device = Color(red: 0.075, green: 0.082, blue: 0.095)
+    static let deviceHi = Color(red: 0.115, green: 0.125, blue: 0.140)
+    static let lime = Color(red: 0.72, green: 0.95, blue: 0.21)
+    static let limeDeep = Color(red: 0.55, green: 0.85, blue: 0.10)
+    static let amber = Color(red: 1.00, green: 0.62, blue: 0.18)
+    static let redLED = Color(red: 1.00, green: 0.30, blue: 0.28)
+    static let label = Color.white.opacity(0.45)
+
+    static func matrix(_ size: CGFloat) -> Font { .custom("Doto-Black", size: size) }
+
+    static let limeGradient = LinearGradient(colors: [lime, limeDeep],
+                                             startPoint: .top, endPoint: .bottom)
+}
+
+/// Faint dot-grid texture over the device body.
+struct FDDotGrid: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let step: CGFloat = 8
+            var y: CGFloat = 5
+            while y < size.height {
+                var x: CGFloat = 5
+                while x < size.width {
+                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.6, height: 1.6)),
+                             with: .color(.white.opacity(0.045)))
+                    x += step
+                }
+                y += step
+            }
+        }
+    }
+}
+
+/// The device card: charcoal gradient + dot grid + corner glow bleed + bevel highlight.
+struct FDCard<Content: View>: View {
+    var width: CGFloat? = nil
+    var glow: Color = FD.lime
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(24)
+            .frame(width: width)
+            .background(
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(LinearGradient(colors: [FD.deviceHi, FD.device],
+                                             startPoint: .top, endPoint: .bottom))
+                    FDDotGrid()
+                    Circle().fill(glow.opacity(0.22)).frame(width: 150, height: 150)
+                        .blur(radius: 55).offset(x: -30, y: -40)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            )
+            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(.white.opacity(0.06), lineWidth: 1))
+            .overlay(alignment: .top) {
+                LinearGradient(colors: [.white.opacity(0), .white.opacity(0.14), .white.opacity(0)],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(height: 1).padding(.horizontal, 22)
+            }
+            .shadow(color: .black.opacity(0.6), radius: 34, y: 20)
+            .preferredColorScheme(.dark)
+    }
+}
+
+/// Inset sub-panel (fields, stat cells, banners).
+struct FDInset<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        content
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.30)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.white.opacity(0.05), lineWidth: 1))
+    }
+}
+
+/// Matrix countdown with a clean custom separator (the Doto colon reads as plus signs).
+struct MatrixTimer: View {
+    let mm: String
+    let ss: String
+    var size: CGFloat = 40
+    var color: Color = .white
+
+    var body: some View {
+        HStack(spacing: size * 0.16) {
+            Text(mm).font(FD.matrix(size))
+            VStack(spacing: size * 0.18) { dot; dot }
+            Text(ss).font(FD.matrix(size))
+        }
+        .foregroundStyle(color)
+    }
+
+    private var dot: some View {
+        RoundedRectangle(cornerRadius: 1.5).fill(color)
+            .frame(width: size * 0.12, height: size * 0.12)
+    }
+}
+
+/// Session progress pill: % appears from 10%; burns lime → amber (70%) → red (85%) to the end.
+struct FDProgress: View {
+    let fraction: CGFloat
+    var width: CGFloat
+
+    private func mix(_ a: (Double, Double, Double), _ b: (Double, Double, Double), _ t: Double) -> Color {
+        Color(red: a.0 + (b.0 - a.0) * t, green: a.1 + (b.1 - a.1) * t, blue: a.2 + (b.2 - a.2) * t)
+    }
+
+    private var barColor: Color {
+        let lime = (0.72, 0.95, 0.21), amber = (1.0, 0.62, 0.18), red = (1.0, 0.30, 0.28)
+        if fraction < 0.70 { return mix(lime, lime, 0) }
+        if fraction < 0.85 { return mix(lime, amber, Double((fraction - 0.70) / 0.15)) }
+        return mix(amber, red, Double(min(1, (fraction - 0.85) / 0.15)))
+    }
+
+    var body: some View {
+        let color = barColor
+        ZStack(alignment: .leading) {
+            Capsule().fill(Color.black.opacity(0.35))
+            Capsule()
+                .fill(LinearGradient(colors: [color, color.opacity(0.75)],
+                                     startPoint: .leading, endPoint: .trailing))
+                .frame(width: max(52, fraction * width))
+                .overlay(alignment: .trailing) {
+                    HStack(spacing: 8) {
+                        if fraction >= 0.10 {
+                            Text("\(Int(fraction * 100))%")
+                                .font(.system(size: 12, weight: .heavy))
+                                .foregroundStyle(.black.opacity(0.75))
+                        }
+                        Image(systemName: "circle.circle.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.black.opacity(0.8))
+                    }
+                    .padding(.trailing, 12)
+                }
+                .shadow(color: color.opacity(0.8), radius: 12)
+                .shadow(color: color.opacity(0.45), radius: 30)
+        }
+        .frame(width: width, height: 42)
+    }
+}
+
+/// Pixel-art badge icon (dot-matrix world: achievements are pixels).
+struct PixelIcon: View {
+    let pattern: [String]
+    var color: Color = FD.amber
+    var pixel: CGFloat = 2.6
+
+    var body: some View {
+        Canvas { ctx, _ in
+            for (y, row) in pattern.enumerated() {
+                for (x, ch) in Array(row).enumerated() where ch == "X" {
+                    ctx.fill(Path(CGRect(x: CGFloat(x) * pixel, y: CGFloat(y) * pixel,
+                                         width: pixel - 0.4, height: pixel - 0.4)),
+                             with: .color(color))
+                }
+            }
+        }
+        .frame(width: pixel * CGFloat(pattern.first?.count ?? 0),
+               height: pixel * CGFloat(pattern.count))
+    }
+
+    static let flame = ["...X...", "..XX...", "..XXX..", ".XXXXX.", "XXXXXXX", "XX.XXXX", ".XXXXX.", "..XXX.."]
+    static let bolt  = ["...XX..", "..XXX..", ".XXX...", "XXXXXX.", "...XXX.", "..XXX..", ".XXX...", ".XX...."]
+    static let star  = ["...X...", "..XXX..", "XXXXXXX", ".XXXXX.", "..XXX..", ".XX.XX.", "XX...XX", "......."]
+    static let skull = [".XXXXX.", "XXXXXXX", "XX.X.XX", "XXXXXXX", ".XXXXX.", ".X.X.X.", ".XXXXX.", "......."]
+    static let sun   = ["X..X..X", ".XXXXX.", "XXXXXXX", ".XXXXX.", "X..X..X", "...X...", ".......", "......."]
+    static let moon  = ["..XXX..", ".XX....", "XX.....", "XX.....", "XX.....", ".XX....", "..XXX..", "......."]
+    static let target = ["..XXX..", ".X...X.", "X..X..X", "X.XXX.X", "X..X..X", ".X...X.", "..XXX..", "......."]
+
+    static func pattern(named name: String) -> [String] {
+        switch name {
+        case "flame": return flame
+        case "bolt": return bolt
+        case "star": return star
+        case "skull": return skull
+        case "sun": return sun
+        case "moon": return moon
+        case "target": return target
+        default: return star
+        }
+    }
+}
+
+/// Achievement badge chip: pixel icon + short caps label.
+struct FDBadge: View {
+    let icon: [String]
+    let label: String
+    var color: Color = FD.amber
+
+    var body: some View {
+        FDInset {
+            HStack(spacing: 8) {
+                PixelIcon(pattern: icon, color: color)
+                Text(label).font(.system(size: 10, weight: .bold)).tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+        }
+    }
+}
+
+/// Primary lime CTA — exactly one per screen.
+struct FDPrimaryButton: View {
+    let title: String
+    var fullWidth = false
+    var disabled = false
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .heavy)).tracking(0.5)
+                .foregroundStyle(disabled ? FD.label : .black)
+                .frame(maxWidth: fullWidth ? .infinity : nil)
+                .padding(.horizontal, 22).padding(.vertical, 12)
+                .background(
+                    Group {
+                        if disabled { Capsule().fill(Color.black.opacity(0.30)) }
+                        else { Capsule().fill(FD.limeGradient) }
+                    }
+                )
+                .shadow(color: disabled ? .clear : FD.lime.opacity(0.8), radius: 14)
+                .shadow(color: disabled ? .clear : FD.lime.opacity(0.4), radius: 34)
+        }
+        .buttonStyle(HFPressStyle())
+        .disabled(disabled)
+    }
+}
+
+/// Quiet secondary; destructive tints red.
+struct FDGhostButton: View {
+    let title: String
+    var destructive = false
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(destructive ? FD.redLED : FD.label)
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .background(Capsule().fill(destructive ? FD.redLED.opacity(0.12) : Color.black.opacity(0.30)))
+        }
+        .buttonStyle(HFPressStyle())
+    }
+}
+
+/// Duration/selection chip: hot = lime gradient + glow.
+struct FDChip: View {
+    let label: String
+    let selected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label).font(.system(size: 12, weight: .bold))
+                .foregroundStyle(selected ? .black : FD.label)
+                .padding(.horizontal, 14)
+                .frame(height: 32)
+                .background(
+                    Group {
+                        if selected { Capsule().fill(FD.limeGradient) }
+                        else { Capsule().fill(Color.black.opacity(0.30)) }
+                    }
+                )
+                .shadow(color: selected ? FD.lime.opacity(0.7) : .clear, radius: 10)
+        }
+        .buttonStyle(HFPressStyle())
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selected)
+    }
+}
+
+/// Circular quiet close button (X) for card corners.
+struct FDCloseButton: View {
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(FD.label)
+                .padding(8)
+                .background(Circle().fill(Color.black.opacity(0.35)))
+        }
+        .buttonStyle(HFPressStyle())
+    }
+}

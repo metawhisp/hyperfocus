@@ -1,4 +1,6 @@
-// ActiveHUDView.swift — mission / remaining time / camera status / exit HUD shown during a session (canon §9).
+// ActiveHUDView.swift — mission / remaining time / exit HUD shown during a session (canon §9).
+// FLIGHT DECK design (specs/07 v2): matrix countdown + mission centered, burning progress pill,
+// quiet close button pinned to the card corner.
 
 import SwiftUI
 
@@ -8,48 +10,32 @@ struct ActiveHUDView: View {
 
     private var ctx: SessionContext { app.context }
 
+    private var fraction: CGFloat {
+        let planned = CGFloat(ctx.config?.plannedDurationSeconds ?? 0)
+        guard planned > 0 else { return 0 }
+        let f = 1 - CGFloat(ctx.remainingFocusTime) / planned
+        return min(max(f, 0), 1)
+    }
+
     var body: some View {
-        GlassCard(width: 260) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(ctx.config?.mission ?? "")
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(2)
-
-                Text(mmss(Int(ctx.remainingFocusTime.rounded())))
-                    .font(SegFont.seg7(30))               // analog 7-segment clock face
-                    .foregroundStyle(.white)
-                    .shadow(color: statusColor.opacity(0.5), radius: 6)
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-
-                HStack(spacing: 7) {
-                    Circle().fill(statusColor).frame(width: 8, height: 8)
-                    Text(statusText).font(.system(size: 11)).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Exit", action: onExit)
-                        .buttonStyle(.borderless)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Palette.red)
+        let total = Int(ctx.remainingFocusTime.rounded())
+        FDCard(width: 400) {
+            VStack(spacing: 16) {
+                // Countdown + mission — centered; the close button stays pinned to the corner.
+                VStack(spacing: 6) {
+                    MatrixTimer(mm: String(format: "%02d", total / 60),
+                                ss: String(format: "%02d", total % 60),
+                                size: 40, color: .white)
+                    Text(ctx.config?.mission ?? "")
+                        .font(.system(size: 13)).foregroundStyle(FD.label).lineLimit(1)
                 }
+                .frame(maxWidth: .infinity)
+                FDProgress(fraction: fraction, width: 352)
             }
-        }
-    }
-
-    private var statusText: String {
-        if ctx.config?.cameraEnabled != true || !ctx.cameraAvailable { return Constants.Copy.hudStatusCameraOff }
-        switch ctx.state {
-        case .active, .manualPaused, .recovering: return Constants.Copy.hudStatusPresent
-        case .warning: return Constants.Copy.hudStatusLooking
-        case .away: return Constants.Copy.hudStatusAway
-        default: return Constants.Copy.hudStatusPresent
-        }
-    }
-
-    private var statusColor: Color {
-        switch ctx.state {
-        case .warning: return Palette.amber
-        case .away: return Palette.red
-        default: return Palette.green
+            .overlay(alignment: .topTrailing) {
+                FDCloseButton { onExit() }
+                    .offset(x: 8, y: -8)
+            }
         }
     }
 }

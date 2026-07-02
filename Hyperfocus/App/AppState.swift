@@ -13,9 +13,12 @@ final class AppState: ObservableObject {
     @Published private(set) var context = SessionContext()
     @Published var useSimulatedCamera = false
     @Published var orbHovered = false          // drives the orb's "alive" hover reaction
+    @Published var lastUnlocks: [Achievement] = []   // fresh unlocks for the completion card
 
     let settings = SettingsStore()
     let store = SessionStore()
+    let achievements = AchievementsStore()
+    let screenContext = ScreenContextService()
     private let coordinator: SessionCoordinator
     private var didBootstrap = false
 
@@ -96,7 +99,20 @@ final class AppState: ObservableObject {
     func markTimerStarted() { if context.sessionStartTime == nil { context.sessionStartTime = Date() } }
     func markSessionEnded() { context.sessionEndTime = Date() }
 
+    /// Called by the coordinator when the timer completes (before the mission answer):
+    /// the session itself is done — evaluate achievements now so the card can celebrate.
+    func evaluateAchievementsOnCompletion() {
+        lastUnlocks = achievements.evaluateCompletion(
+            planned: context.config?.plannedDurationSeconds ?? 0,
+            activeFocus: Int(context.activeFocusSeconds.rounded()),
+            breaks: context.breakCount,
+            startedAt: context.sessionStartTime ?? Date(),
+            history: store.all()
+        )
+    }
+
     func persist(_ status: CompletionStatus) {
+        if status == .exited { achievements.registerBurned() }   // early STOP — counted, not celebrated
         let c = context
         let session = Session(
             id: UUID(),

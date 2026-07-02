@@ -20,10 +20,10 @@ struct CountdownOverlayView: View {
                 .ignoresSafeArea()
 
             Text(sequence[index])
-                // Intro line stays readable; the 3·2·1·FOCUS frames use the 14-segment display font.
-                .font(index == 0 ? .system(size: 46, weight: .bold, design: .rounded) : SegFont.seg14(116))
+                // Intro line stays readable; the 3·2·1·FOCUS frames use the dot-matrix display font.
+                .font(index == 0 ? .system(size: 46, weight: .bold, design: .rounded) : FD.matrix(116))
                 .foregroundStyle(.white)
-                .shadow(color: Palette.green.opacity(cinematic ? 0.9 : 0.5),
+                .shadow(color: FD.lime.opacity(cinematic ? 0.9 : 0.5),
                         radius: cinematic ? 34 : 18)
                 .minimumScaleFactor(0.4)
                 .lineLimit(1)

@@ -11,55 +11,70 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Session History")
-                .font(.system(size: 15, weight: .semibold))
+            Text("SESSION HISTORY")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.5)
+                .foregroundStyle(FD.label)
                 .padding(16)
 
             if sessions.isEmpty {
                 Spacer()
                 Text("No sessions yet.")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(FD.label)
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
                 List(sessions.reversed()) { s in
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(s.mission).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                            Text(s.mission)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
                             Spacer()
                             Text(statusLabel(s.completionStatus))
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(statusColor(s.completionStatus))
                         }
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             Text(Self.dateFormatter.string(from: s.startedAt))
-                            Text("· \(mmss(s.activeFocusSeconds)) focus")
-                            Text("· \(s.breakCount) breaks")
+                                .font(.system(size: 11))
+                                .foregroundStyle(FD.label)
+                            Text(mmss(s.activeFocusSeconds))
+                                .font(FD.matrix(12))
+                                .foregroundStyle(.white.opacity(0.70))
+                            Text("focus · \(s.breakCount) breaks")
+                                .font(.system(size: 11))
+                                .foregroundStyle(FD.label)
                         }
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 3)
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparatorTint(.white.opacity(0.07))
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .frame(width: 420, height: 460)
+        .background(Color(red: 0.06, green: 0.065, blue: 0.075))
+        .preferredColorScheme(.dark)
     }
 
     private func statusLabel(_ s: CompletionStatus) -> String {
         switch s {
         case .done: return "Done"
         case .partial: return "Partial"
-        case .notDone: return "Not done"
-        case .exited: return "Exited"
+        case .notDone, .exited: return "Not done"   // early exits count as Not done (canon #29)
         }
     }
 
     private func statusColor(_ s: CompletionStatus) -> Color {
         switch s {
-        case .done: return Palette.green
-        case .partial: return Palette.amber
-        case .notDone, .exited: return Palette.red
+        case .done: return FD.lime
+        case .partial: return FD.amber
+        case .notDone, .exited: return FD.redLED
         }
     }
 }

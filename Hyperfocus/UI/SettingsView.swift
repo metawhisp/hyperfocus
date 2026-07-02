@@ -61,6 +61,16 @@ struct SettingsView: View {
                 Picker("Voice", selection: enumBinding({ settings.voicePersona }, { settings.voicePersona = $0 })) {
                     ForEach(VoicePersona.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
+                Toggle("Focus sound during sessions",
+                       isOn: boolBinding({ settings.focusSoundEnabled }, { settings.focusSoundEnabled = $0 }))
+                Picker("Focus sound", selection: enumBinding({ settings.focusSoundMode }, { settings.focusSoundMode = $0 })) {
+                    ForEach(FocusSoundMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
+                LabeledContent("Focus sound volume") {
+                    Slider(value: doubleBinding({ settings.focusSoundVolume }, { settings.focusSoundVolume = $0 }), in: 0...1).frame(width: 180)
+                }
+                Text("Focus Beats 40 Hz works with headphones (different tone per ear).")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
                 Toggle("Alarm sound", isOn: boolBinding({ settings.alarmEnabled }, { settings.alarmEnabled = $0 }))
                 LabeledContent("Volume") {
                     Slider(value: doubleBinding({ settings.soundVolume }, { settings.soundVolume = $0 }), in: 0...1).frame(width: 180)

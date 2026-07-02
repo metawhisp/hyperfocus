@@ -117,6 +117,24 @@ final class SettingsStore {
         set { defaults.set(newValue.rawValue, forKey: Constants.SettingsKeys.voicePersona) }
     }
 
+    var focusSoundEnabled: Bool {
+        get { bool(Constants.SettingsKeys.focusSoundEnabled, Constants.Defaults.focusSoundEnabled) }
+        set { defaults.set(newValue, forKey: Constants.SettingsKeys.focusSoundEnabled) }
+    }
+
+    var focusSoundMode: FocusSoundMode {
+        get {
+            let raw = defaults.string(forKey: Constants.SettingsKeys.focusSoundMode) ?? ""
+            return FocusSoundMode(rawValue: raw) ?? Constants.Defaults.focusSoundMode
+        }
+        set { defaults.set(newValue.rawValue, forKey: Constants.SettingsKeys.focusSoundMode) }
+    }
+
+    var focusSoundVolume: Double {
+        get { double(Constants.SettingsKeys.focusSoundVolume, Constants.Defaults.focusSoundVolume) }
+        set { defaults.set(newValue, forKey: Constants.SettingsKeys.focusSoundVolume) }
+    }
+
     // MARK: Visual
 
     var auraIntensity: Double {

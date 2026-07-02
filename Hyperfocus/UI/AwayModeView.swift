@@ -1,4 +1,4 @@
-// AwayModeView.swift — "Session paused" glass card + recovery countdown, Return / Exit Session (canon §9).
+// AwayModeView.swift — FLIGHT DECK away card: pulsing red PAUSED LED, Return / Exit Session (canon §9).
 
 import SwiftUI
 
@@ -7,36 +7,39 @@ struct AwayModeView: View {
     var onReturn: () -> Void
     var onExit: () -> Void
 
-    private var recovering: Bool { app.context.state == .recovering }
-
     var body: some View {
-        GlassCard(width: 320) {
-            VStack(spacing: 14) {
-                if recovering {
-                    // Recovery countdown shown within the away card (canon §9): 3 → 2 → 1 → Back to focus.
-                    Text("Back to focus")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(Palette.green)
-                    Text("Hold still…")
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
-                } else {
-                    Text(Constants.Copy.awayCardTitle)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Palette.red)
-                    Text(Constants.Copy.awayCardText)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-
+        FDCard(width: 340, glow: FD.redLED) {
+            VStack(spacing: 12) {
+                pausedTitle
+                Text("RETURN TO HYPERFOCUS OR EXIT")
+                    .font(.system(size: 11, weight: .bold)).tracking(1.2)
+                    .foregroundStyle(FD.amber)
                 HStack(spacing: 10) {
-                    Button(Constants.Copy.awayReturnButton, action: onReturn)
-                        .buttonStyle(.borderedProminent)
-                        .tint(Palette.green)
-                    Button(Constants.Copy.awayExitButton, action: onExit)
-                        .buttonStyle(.bordered)
+                    FDGhostButton(title: "Exit Session", destructive: true) { onExit() }
+                    FDPrimaryButton(title: "RETURN") { onReturn() }
                 }
             }
+            .frame(maxWidth: .infinity)
         }
+    }
+
+    /// Slow red LED pulse; static when reduce-motion is on.
+    @ViewBuilder
+    private var pausedTitle: some View {
+        if app.settings.reduceMotion {
+            title
+        } else {
+            TimelineView(.animation) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                title.opacity(0.7 + 0.3 * abs(sin(t * 2)))
+            }
+        }
+    }
+
+    private var title: some View {
+        Text("PAUSED")
+            .font(FD.matrix(34))
+            .foregroundStyle(FD.redLED)
+            .shadow(color: FD.redLED.opacity(0.6), radius: 10)
     }
 }

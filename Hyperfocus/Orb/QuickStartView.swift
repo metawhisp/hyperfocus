@@ -19,11 +19,16 @@ struct QuickStartChipView: View {
     var body: some View {
         let hot = model.highlighted == index
         Text("\(minutes) min")
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(hot ? .black : .white)
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(hot ? Color.black : FD.label)
             .padding(.horizontal, 14).padding(.vertical, 8)
-            .background(hot ? AnyShapeStyle(Palette.green) : AnyShapeStyle(.ultraThinMaterial), in: Capsule())
-            .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
+            .background(
+                Group {
+                    if hot { Capsule().fill(FD.limeGradient) }
+                    else { Capsule().fill(Color.black.opacity(0.30)) }
+                }
+            )
+            .shadow(color: hot ? FD.lime.opacity(0.7) : .black.opacity(0.4), radius: hot ? 10 : 8, y: hot ? 0 : 4)
             .scaleEffect(hot ? 1.12 : (appeared ? 1.0 : 0.7))
             .opacity(appeared ? 1 : 0)
             .animation(.spring(response: 0.28, dampingFraction: 0.75), value: hot)
