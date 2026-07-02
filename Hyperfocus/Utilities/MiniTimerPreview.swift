@@ -25,6 +25,7 @@ private struct DemoHUDCard: View {
     let mm: String
     let ss: String
     let fraction: CGFloat
+    var onClose: () -> Void
 
     var body: some View {
         FDCard(width: 360) {
@@ -42,13 +43,20 @@ private struct DemoHUDCard: View {
                 }
                 .frame(width: 312, height: 26)
             }
+            // Same X as the real HUD — here it opens the STOP HYPERFOCUS? mock.
+            .overlay(alignment: .topTrailing) {
+                FDCloseButton { onClose() }
+                    .offset(x: 8, y: -8)
+            }
         }
     }
 }
 
 struct MiniCollapseDemoView: View {
     @State private var collapsed = false
-    private let spring = Animation.spring(response: 0.38, dampingFraction: 0.82)
+    @State private var showConfirm = false
+    // Gentle glide, not a snap; the pill lands a beat after the card leaves.
+    private let glide = Animation.spring(response: 0.6, dampingFraction: 0.88)
 
     // Demo geometry: orb top-right (like real usage), card mid-left.
     private let orbCenter = CGPoint(x: 600, y: 96)
@@ -70,28 +78,47 @@ struct MiniCollapseDemoView: View {
                     .frame(width: 110, height: 110)
                     .position(orbCenter)
 
+                // All effects are applied BEFORE .position so hit areas stay element-sized —
+                // a contentShape after .position would swallow clicks across the whole window.
                 MiniTimerPill(mm: mm, ss: ss)
-                    .position(pillCenter)
-                    .opacity(collapsed ? 1 : 0)
-                    .offset(y: collapsed ? 0 : -14)
+                    .contentShape(Capsule())
+                    .onTapGesture { collapsed = false }
                     .scaleEffect(collapsed ? 1 : 0.5, anchor: .top)
-                    .onTapGesture { withAnimation(spring) { collapsed = false } }
+                    .offset(y: collapsed ? 0 : -14)
+                    .opacity(collapsed ? 1 : 0)
+                    .animation(glide.delay(collapsed ? 0.12 : 0), value: collapsed)
+                    .position(pillCenter)
+                    .allowsHitTesting(collapsed && !showConfirm)
 
-                DemoHUDCard(mm: mm, ss: ss, fraction: fraction)
-                    .position(cardCenter)
-                    // Shrinks toward the orb (anchor lies beyond the card, at the orb's corner).
-                    .scaleEffect(collapsed ? 0.06 : 1, anchor: UnitPoint(x: 1.4, y: -0.35))
-                    .opacity(collapsed ? 0 : 1)
+                DemoHUDCard(mm: mm, ss: ss, fraction: fraction,
+                            onClose: { withAnimation(.easeOut(duration: 0.2)) { showConfirm = true } })
                     .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { withAnimation(spring) { collapsed = true } }
+                    .onTapGesture(count: 2) { collapsed = true }
+                    // Shrinks toward the orb (anchor lies beyond the card, at the orb's corner);
+                    // fades out early so the final part of the shrink is invisible → soft feel.
+                    .scaleEffect(collapsed ? 0.12 : 1, anchor: UnitPoint(x: 1.4, y: -0.35))
+                    .opacity(collapsed ? 0 : 1)
+                    .animation(glide.delay(collapsed ? 0 : 0.12), value: collapsed)
+                    .position(cardCenter)
+                    .allowsHitTesting(!collapsed && !showConfirm)
+
+                if showConfirm {
+                    Color.black.opacity(0.45)
+                        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { showConfirm = false } }
+                    ExitConfirmView(
+                        onStay: { withAnimation(.easeOut(duration: 0.2)) { showConfirm = false } },
+                        onExit: { withAnimation(.easeOut(duration: 0.2)) { showConfirm = false } })
+                        .transition(.scale(scale: 0.92).combined(with: .opacity))
+                }
 
                 VStack {
                     Spacer()
-                    Text("2× КЛИК ПО КАРТОЧКЕ — СВЕРНУТЬ ПОД ОРБ   ·   КЛИК ПО ЦИФРАМ — РАЗВЕРНУТЬ")
+                    Text("2× КЛИК ПО КАРТОЧКЕ — СВЕРНУТЬ   ·   КЛИК ПО ЦИФРАМ — РАЗВЕРНУТЬ   ·   ✕ — STOP?")
                         .font(.system(size: 10, weight: .bold)).tracking(1.1)
                         .foregroundStyle(FD.label)
                         .padding(.bottom, 14)
                 }
+                .allowsHitTesting(false)
             }
             .frame(width: 720, height: 430)
         }
