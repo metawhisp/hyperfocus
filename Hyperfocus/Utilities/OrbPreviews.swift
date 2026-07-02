@@ -355,15 +355,17 @@ struct InnerLitStillsView: View {
     }
 }
 
-/// Morph phases of the V5 ring⇄particles concept: p = 0, 0.35, 0.7, 1.
+/// Morph phases of the ring⇄particles concept at the three brightness levels.
 struct RingMorphStillsView: View {
     var body: some View {
-        HStack(spacing: 20) {
-            ForEach([0.0, 0.35, 0.7, 1.0], id: \.self) { p in
-                VStack(spacing: 8) {
-                    RingToParticlesOrb(t: 1.4, progress: p, diameter: 60)
-                        .frame(width: 150, height: 130)
-                    Text(String(format: "p = %.2f", p))
+        VStack(spacing: 4) {
+            ForEach([1.5, 2.2, 3.0], id: \.self) { b in
+                HStack(spacing: 20) {
+                    ForEach([0.0, 0.5, 1.0], id: \.self) { p in
+                        RingToParticlesOrb(t: 1.4, progress: p, diameter: 60, brightness: b)
+                            .frame(width: 150, height: 130)
+                    }
+                    Text(String(format: "×%.1f", b))
                         .font(.system(size: 11)).foregroundStyle(.white.opacity(0.7))
                 }
             }

@@ -143,6 +143,7 @@ struct RingToParticlesOrb: View {
     let t: Double          // drives sphere rotation
     let progress: Double   // 0 = red ring (off) … 1 = green rotating particle sphere (on)
     var diameter: CGFloat = 46
+    var brightness: Double = 2.0   // ADHD product: ON must BLAZE green, not whisper
 
     private static let count = 240
     // Sorted by screen angle so ring dot i flies to a sphere point at a similar angle — the ring
@@ -169,12 +170,24 @@ struct RingToParticlesOrb: View {
             let rgb = Self.offRGB + (Self.onRGB - Self.offRGB) * p
             let color = Color(red: rgb.x, green: rgb.y, blue: rgb.z)
 
-            // Soft glow — dim ember around the off ring, brighter as it powers on.
-            let glowR = R * 2.0
+            // Outer halo — visible ember when off, BLAZING when on (scales with brightness).
+            let glowR = R * 2.3
+            let haloAlpha = min(1.0, (0.10 + 0.38 * p) * brightness)
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - glowR, y: c.y - glowR,
                                             width: glowR * 2, height: glowR * 2)),
-                     with: .radialGradient(Gradient(colors: [color.opacity(0.12 + 0.26 * p), .clear]),
-                                           center: c, startRadius: R * 0.4, endRadius: glowR))
+                     with: .radialGradient(Gradient(colors: [color.opacity(haloAlpha), .clear]),
+                                           center: c, startRadius: R * 0.35, endRadius: glowR))
+            // Inner bloom — the sphere itself radiates once powered on.
+            if p > 0.01 {
+                let bloomR = R * 1.25
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - bloomR, y: c.y - bloomR,
+                                                width: bloomR * 2, height: bloomR * 2)),
+                         with: .radialGradient(
+                            Gradient(colors: [color.opacity(min(1.0, 0.55 * p * brightness)),
+                                              color.opacity(min(1.0, 0.18 * p * brightness)),
+                                              .clear]),
+                            center: c, startRadius: 0, endRadius: bloomR))
+            }
 
             let rotY = t * 0.55, rotX = t * 0.21
             let cy = cos(rotY), sy = sin(rotY), cx = cos(rotX), sx = sin(rotX)
@@ -194,11 +207,16 @@ struct RingToParticlesOrb: View {
                 let x = ringX + (sphX - ringX) * p
                 let y = ringY + (sphY - ringY) * p
                 let d = 0.55 + (depth - 0.55) * p
-                let dotR = (1.15 + ((0.30 + 0.50 * depth) * R / 14 - 1.15) * p)
-                let bright = 0.95 + ((0.16 + 0.74 * depth) - 0.95) * p
-                let dotColor = Color(red: rgb.x + (1 - rgb.x) * d * 0.45 * p,
-                                     green: rgb.y + (1 - rgb.y) * d * 0.45 * p,
-                                     blue: rgb.z + (1 - rgb.z) * d * 0.45 * p)
+                let sizeBoost = 1 + 0.15 * (brightness - 1) * p
+                let sphereDotR = (0.30 + 0.50 * depth) * R / 14
+                let dotR = (1.15 + (sphereDotR - 1.15) * p) * sizeBoost
+                let sphereAlpha = 0.35 + 0.75 * depth
+                let alphaBoost = 1 + 0.25 * (brightness - 1) * p
+                let bright = min(1.0, (0.95 + (sphereAlpha - 0.95) * p) * alphaBoost)
+                let whiten = d * 0.60 * p
+                let dotColor = Color(red: rgb.x + (1 - rgb.x) * whiten,
+                                     green: rgb.y + (1 - rgb.y) * whiten,
+                                     blue: rgb.z + (1 - rgb.z) * whiten)
                 ctx.fill(Path(ellipseIn: CGRect(x: c.x + x - dotR, y: c.y + y - dotR,
                                                 width: dotR * 2, height: dotR * 2)),
                          with: .color(dotColor.opacity(bright)))
@@ -209,10 +227,12 @@ struct RingToParticlesOrb: View {
 
 /// Auto-cycling live demo: off ring → powers on into the rotating sphere → powers off.
 private struct RingMorphDemoCell: View {
+    var brightness: Double = 2.0
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
             let t = tl.date.timeIntervalSinceReferenceDate
-            RingToParticlesOrb(t: t, progress: Self.progress(at: t), diameter: 64)
+            RingToParticlesOrb(t: t, progress: Self.progress(at: t), diameter: 64,
+                               brightness: brightness)
                 .frame(width: 170, height: 150)
         }
     }
@@ -244,26 +264,25 @@ struct OrbLiveGalleryView: View {
     private let names = ["V1 · Дыхание", "V2 · Вихрь", "V3 · Частицы", "V4 · Пульс-дрейф"]
 
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 6) {
-                Text("V5 · Кольцо ⇄ Частицы — красная окружность рассыпается в крутящуюся сферу (автоцикл вкл/выкл)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.8))
-                RingMorphDemoCell()
-            }
-            Divider().overlay(Color.white.opacity(0.1))
-            Text("Для сравнения: свет внутри — вкл (зелёный) / выкл (красный)")
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.5))
-            HStack(alignment: .top, spacing: 22) {
-                ForEach(0..<4, id: \.self) { i in
-                    VStack(spacing: 8) {
-                        LiveOrbCell(variant: i + 1, on: true)
-                        LiveOrbCell(variant: i + 1, on: false)
-                        Text(names[i])
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.75))
-                    }
+        VStack(spacing: 14) {
+            Text("Кольцо ⇄ Частицы: три уровня яркости (автоцикл выкл → ВКЛ → выкл)")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.8))
+            HStack(alignment: .top, spacing: 24) {
+                VStack(spacing: 6) {
+                    RingMorphDemoCell(brightness: 1.5)
+                    Text("Я1 · Ярко").font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+                VStack(spacing: 6) {
+                    RingMorphDemoCell(brightness: 2.2)
+                    Text("Я2 · Очень ярко").font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+                VStack(spacing: 6) {
+                    RingMorphDemoCell(brightness: 3.0)
+                    Text("Я3 · Неон").font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
                 }
             }
         }
