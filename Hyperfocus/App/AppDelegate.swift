@@ -43,6 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             QuickStartPreviewWindow.show()  // quick-start chip styles; user picks before prod
             return
         }
+        if ProcessInfo.processInfo.environment["HF_ORB_LIFE_PREVIEW"] == "1" {
+            OrbLifePreviewWindow.show()     // idle-orb liveliness + entrance; user picks before prod
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
