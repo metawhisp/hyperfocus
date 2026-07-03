@@ -48,6 +48,9 @@ final class FocusOrbWindowController {
 
     func show() {
         if panel == nil { build() }
+        // Sync emphasis to the live session state — the orb may be revealed mid-warning/away
+        // (e.g. showOrbOnLaunch off, then "Show Focus Orb"), so it must not appear un-emphasized.
+        if let app { setEmphasis(for: app.context.state) }
         panel?.orderFrontRegardless()
         #if DEBUG
         NSLog("HFDIAG orb.show frame=%@ visible=%d vb=%@",
@@ -152,7 +155,9 @@ final class FocusOrbWindowController {
         case .warning:           scale = 1.5
         default:                 scale = 1
         }
-        guard scale != emphasisScale else { return }
+        // Only change state when there IS a panel — otherwise emphasisScale would drift from the
+        // (nil) window and mis-size the geometry once the orb is later built (codex review).
+        guard scale != emphasisScale, panel != nil else { return }
         emphasisScale = scale
         applyEmphasisFrame(animate: true)
     }
