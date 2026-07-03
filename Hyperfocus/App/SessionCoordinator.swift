@@ -132,7 +132,8 @@ final class SessionCoordinator {
         let view = SettingsView(
             onClearData: { [weak self] in try? self?.store.clear() },
             onResetOrb: { [weak self] in self?.orb.resetToDefault() },
-            onOpenSystemCamera: { Self.openSystemCameraPrefs() }
+            onOpenSystemCamera: { Self.openSystemCameraPrefs() },
+            onEnableScreenAnalysis: { [weak self] in self?.requestScreenAnalysisPermission() }
         ).environmentObject(app)
         let w = makeStandardWindow(title: "Hyperfocus Settings", view: view)
         settingsWindow = w
@@ -841,6 +842,19 @@ final class SessionCoordinator {
     static func openSystemCameraPrefs() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
             NSWorkspace.shared.open(url)
+        }
+    }
+
+    /// Post-onboarding path to grant Screen Recording (the radar's prereq). First run triggers the
+    /// system prompt and adds the app to the list; if already decided, opens System Settings.
+    func requestScreenAnalysisPermission() {
+        if screenPermission.isAuthorized { return }
+        screenPermission.requestAccess { granted in
+            if !granted {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
     }
 

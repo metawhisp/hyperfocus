@@ -7,6 +7,7 @@ struct SettingsView: View {
     var onClearData: () -> Void
     var onResetOrb: () -> Void
     var onOpenSystemCamera: () -> Void
+    var onEnableScreenAnalysis: () -> Void = {}
 
     private var settings: SettingsStore { app.settings }
 
@@ -52,7 +53,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Toggle("Analyze screen for distractions",
                        isOn: boolBinding({ settings.useScreenAnalysis }, { settings.useScreenAnalysis = $0 }))
-                Button("Open System camera permissions…", action: onOpenSystemCamera)
+                HStack(spacing: 12) {
+                    Button("Enable screen analysis…", action: onEnableScreenAnalysis)
+                    Button("Open System camera permissions…", action: onOpenSystemCamera)
+                }
                 Text(Constants.Copy.privacyCopy)
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
