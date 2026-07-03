@@ -47,6 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             OrbLifePreviewWindow.show()     // idle-orb liveliness + entrance; user picks before prod
             return
         }
+        if ProcessInfo.processInfo.environment["HF_AWAY_PREVIEW"] == "1" {
+            AwayFlowPreviewWindow.show()    // away trap-flow / angry orb / aura ramp / digit contrast
+            return
+        }
+        if ProcessInfo.processInfo.environment["HF_ALARM_PREVIEW"] == "1" {
+            AlarmPreviewWindow.show()       // away-alarm sound candidates
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
