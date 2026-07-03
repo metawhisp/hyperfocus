@@ -53,6 +53,9 @@ enum DebugSnapshots {
         snap(PermissionNudgeView(canPrompt: true, onEnable: {}, onOpenSettings: {}, onLater: {}),
              "camera_nudge", dir, CGSize(width: 460, height: 320))
 
+        // FLIGHT DECK status-bar menu.
+        snap(MenuBarContent(appState: app), "menubar", dir, CGSize(width: 284, height: 340))
+
         snap(AwayModeView(onReturn: {}, onExit: {}).environmentObject(app),
              "away_card", dir, CGSize(width: 360, height: 240))
 
