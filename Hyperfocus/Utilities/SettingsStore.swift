@@ -84,6 +84,12 @@ final class SettingsStore {
         set { defaults.set(newValue, forKey: Constants.SettingsKeys.useScreenAnalysis) }
     }
 
+    /// Strict = react to looking away (attention cone); off = presence only (multi-monitor).
+    var strictAttention: Bool {
+        get { bool(Constants.SettingsKeys.strictAttention, Constants.Defaults.strictAttention) }
+        set { defaults.set(newValue, forKey: Constants.SettingsKeys.strictAttention) }
+    }
+
     // MARK: Sound
 
     var voicePromptsEnabled: Bool {

@@ -219,8 +219,8 @@ final class SessionCoordinator {
         case .dismissCountdown:         dismiss(&countdownWindow); stopStinger()
         case .setAura(let state):       aura.setState(state)
         case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
-        case .pauseTimer:               focusSound.stop()      // away: the alarm owns the soundscape
-        case .resumeTimer:              startFocusSound()      // soundscape continues on the session clock
+        case .pauseTimer:               focusSound.stop(); screenAnalysis.stop()   // away: alarm owns audio, radar sleeps
+        case .resumeTimer:              startFocusSound(); startScreenAnalysis()   // both continue with the session
         case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); teardownMini(); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession()
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
@@ -253,6 +253,8 @@ final class SessionCoordinator {
             }
             presence = service
         }
+        // Strict attention is a live setting (multi-monitor users turn it off — canon #37).
+        (presence as? CameraPresenceService)?.strictAttention = settings.strictAttention
         // NEVER prompt for permission at session start (canon §13 #27) — permission is collected in
         // onboarding or by the launch nudge. If unauthorized here, the service emits .notAuthorized
         // and the reducer degrades to no-camera semantics silently.
@@ -365,6 +367,7 @@ final class SessionCoordinator {
     private func startScreenAnalysis() {
         guard settings.useScreenAnalysis else { return }
         lastNudgeAt = .distantPast
+        pendingDistraction = nil            // dwell never carries across sessions/resumes
         screenAnalysis.onDistraction = { [weak self] term, lines in
             self?.handleDistraction(term: term, screenLines: lines)
         }
@@ -383,6 +386,9 @@ final class SessionCoordinator {
     /// Keyword prefilter hit → cheap mission check → dwell (must persist across two scans) →
     /// the context judge (on-device LLM where available, lexical relevance everywhere else).
     private func handleDistraction(term: String, screenLines: [String]) {
+        // Live re-checks: the toggle can be flipped mid-session, and the judge's async
+        // completion must never nudge a session that ended meanwhile.
+        guard settings.useScreenAnalysis else { return }
         guard !missionMentions(term) else { return }
         // A distraction must survive TWO consecutive scans (~24 s) — a keyword flashing by in
         // one frame is not drifting.
@@ -404,7 +410,8 @@ final class SessionCoordinator {
     }
 
     private func showNudge() {
-        guard let app = appState, nudgePanel == nil else { return }
+        guard let app = appState, nudgePanel == nil,
+              app.context.state.isRunning else { return }   // never nudge an ended session
         let mission = app.context.config?.mission ?? "your task"
         let panel = makeCardPanel(NudgeView(mission: mission), app: app, level: .floating)
         placeNearOrb(panel)

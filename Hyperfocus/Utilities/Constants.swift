@@ -30,6 +30,7 @@ enum Constants {
         static let allowSessionsWithoutCamera = "hf.allowSessionsWithoutCamera"
         static let useCameraForPresence = "hf.useCameraForPresence"
         static let useScreenAnalysis = "hf.useScreenAnalysis"
+        static let strictAttention = "hf.strictAttention"
         static let voicePromptsEnabled = "hf.voicePromptsEnabled"
         static let alarmEnabled = "hf.alarmEnabled"
         static let soundVolume = "hf.soundVolume"
@@ -62,6 +63,7 @@ enum Constants {
         static let allowSessionsWithoutCamera = true
         static let useCameraForPresence = true
         static let useScreenAnalysis = true       // effective only when Screen Recording is granted
+        static let strictAttention = true         // off = presence only (multi-monitor setups)
         static let voicePromptsEnabled = true
         static let alarmEnabled = true
         static let soundVolume: Double = 0.5
@@ -166,19 +168,29 @@ enum Constants {
     enum Screen {
         static let analysisInterval: Double = 12      // seconds between local screen captures during a session
         static let captureScale = 2                   // downscale factor for the analyzed frame
+        // Matched with WORD BOUNDARIES (corner-case hunt: plain `contains` made "for you" fire
+        // on "for your convenience" and " x.com" on dropbox.com/netflix.com — x.com dropped,
+        // twitter/tweet cover it).
         static let distractionKeywords = [
-            "youtube", "tiktok", "instagram", "twitter", " x.com", "reddit", "netflix",
+            "youtube", "tiktok", "instagram", "twitter", "reddit", "netflix",
             "twitch", "facebook", "for you", "shorts", "tweet", "9gag", "pornhub",
         ]
-        /// If the MISSION itself mentions the matched service (in EN or RU), it's the work,
-        /// not a distraction — "смонтировать ютуб ролик" must never be nudged about YouTube.
+        /// If the MISSION itself NAMES the matched service (EN or RU), it's the work, not a
+        /// distraction. Deliberately narrow — service names only; every list includes its own
+        /// keyword (the hunt: "edit shorts pack" wasn't suppressed). Semantic cases ("сделать
+        /// видео") are the judge's job, not a blanket mute.
         static let keywordAliases: [String: [String]] = [
-            "youtube": ["ютуб", "youtube", "видео"], "shorts": ["ютуб", "youtube", "шортс"],
-            "tiktok": ["тикток", "tiktok"], "instagram": ["инстаграм", "инст", "reels", "рилс"],
-            "twitter": ["твиттер", "твит", "twitter"], " x.com": ["твиттер", "x.com"],
-            "tweet": ["твиттер", "твит", "twitter"], "reddit": ["реддит", "reddit"],
-            "netflix": ["нетфликс", "netflix"], "twitch": ["твич", "twitch", "стрим"],
-            "facebook": ["фейсбук", "facebook"], "for you": ["тикток", "tiktok"],
+            "youtube": ["youtube", "ютуб"],
+            "shorts": ["shorts", "youtube", "ютуб", "шортс"],
+            "tiktok": ["tiktok", "тикток"],
+            "for you": ["for you", "tiktok", "тикток"],
+            "instagram": ["instagram", "инстаграм", "инста", "reels", "рилс"],
+            "twitter": ["twitter", "твиттер", "твит"],
+            "tweet": ["tweet", "twitter", "твиттер", "твит"],
+            "reddit": ["reddit", "реддит"],
+            "netflix": ["netflix", "нетфликс"],
+            "twitch": ["twitch", "твич"],
+            "facebook": ["facebook", "фейсбук"],
         ]
     }
 

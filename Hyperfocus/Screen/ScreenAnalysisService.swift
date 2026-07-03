@@ -1,11 +1,16 @@
-// ScreenAnalysisService.swift — local, privacy-safe distraction detection from on-screen text (canon §13 #23).
+// ScreenAnalysisService.swift — local, privacy-safe distraction detection from on-screen text
+// (canon §13 #23, hardened per the corner-case hunt in canon #37).
 //
-// During a session this periodically captures the main display via ScreenCaptureKit, runs Vision text
-// recognition IN MEMORY, and checks the recognized text against a small distraction keyword list. It
-// emits only the matched term — the captured image is never stored, written, or uploaded, and is
-// discarded immediately after analysis. Runs only when Screen Recording is authorized.
+// During a session this periodically captures EVERY display via ScreenCaptureKit at PIXEL
+// resolution (SCDisplay reports points; dividing them made OCR blind to normal-sized text),
+// excluding Hyperfocus's own windows (the HUD shows the mission — capturing it made the lexical
+// judge see the mission "on screen" forever). Vision text recognition runs IN MEMORY at .accurate
+// (the .fast path has no Cyrillic support — verified), and keywords match on WORD BOUNDARIES
+// ("for you" must not fire on "for your convenience"). It emits only the matched term + the
+// recognized lines — captured images are never stored, written, or uploaded. Runs only when
+// Screen Recording is authorized.
 
-import Foundation
+import AppKit
 import ScreenCaptureKit
 import Vision
 
@@ -39,43 +44,84 @@ final class ScreenAnalysisService {
         busy = true
         Task { [weak self] in
             defer { self?.busy = false }
-            guard let self, let image = await self.captureMainDisplay() else { return }
-            let terms = self.recognizeText(in: image)                     // in-memory only
-            guard let hit = self.matchDistraction(terms) else { return }
+            guard let self else { return }
+            let images = await self.captureAllDisplays()
+            let terms = images.flatMap { self.recognizeText(in: $0) }     // in-memory only;
+            // the images go out of scope here — never persisted or transmitted
+            guard let hit = Self.matchDistraction(terms) else { return }
             await MainActor.run { self.onDistraction?(hit, terms) }
-            // `image` goes out of scope here — never persisted or transmitted.
         }
     }
 
-    private func captureMainDisplay() async -> CGImage? {
+    /// All displays at pixel resolution, Hyperfocus's own windows excluded.
+    private func captureAllDisplays() async -> [CGImage] {
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            guard let display = content.displays.first else { return nil }
-            let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
-            let config = SCStreamConfiguration()
-            config.width = max(1, display.width / Constants.Screen.captureScale)
-            config.height = max(1, display.height / Constants.Screen.captureScale)
-            config.showsCursor = false
-            return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            let ownApps = content.applications.filter {
+                $0.bundleIdentifier == Bundle.main.bundleIdentifier
+            }
+            var images: [CGImage] = []
+            for display in content.displays {
+                let filter = SCContentFilter(display: display,
+                                             excludingApplications: ownApps, exceptingWindows: [])
+                let config = SCStreamConfiguration()
+                let scale = Self.pixelScale(for: display.displayID)
+                // SCDisplay dimensions are POINTS; the config wants PIXELS — capturing at
+                // points/2 starved the OCR (12 pt text became 6 px — unreadable).
+                config.width = max(1, Int(Double(display.width) * scale))
+                config.height = max(1, Int(Double(display.height) * scale))
+                config.showsCursor = false
+                if let image = try? await SCScreenshotManager.captureImage(contentFilter: filter,
+                                                                           configuration: config) {
+                    images.append(image)
+                }
+            }
+            return images
         } catch {
-            return nil
+            return []
         }
+    }
+
+    private static func pixelScale(for displayID: CGDirectDisplayID) -> Double {
+        for screen in NSScreen.screens {
+            if (screen.deviceDescription[.init("NSScreenNumber")] as? CGDirectDisplayID) == displayID {
+                return screen.backingScaleFactor
+            }
+        }
+        return 2
     }
 
     private func recognizeText(in image: CGImage) -> [String] {
         let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .fast
+        // .accurate is required: the .fast recognizer supports no Cyrillic at all (verified) —
+        // RU screen text came out as Latin garbage and broke the lexical judge.
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US", "ru-RU"]
         request.usesLanguageCorrection = false
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         try? handler.perform([request])
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string.lowercased() }
     }
 
-    private func matchDistraction(_ terms: [String]) -> String? {
+    /// Word-boundary keyword matching over the recognized lines (internal for tests).
+    static func matchDistraction(_ terms: [String]) -> String? {
         for keyword in Constants.Screen.distractionKeywords {
-            let k = keyword.trimmingCharacters(in: .whitespaces)
-            if terms.contains(where: { $0.contains(k) }) { return k }
+            guard let regex = boundaryRegexes[keyword] else { continue }
+            for line in terms {
+                let range = NSRange(line.startIndex..., in: line)
+                if regex.firstMatch(in: line, range: range) != nil { return keyword }
+            }
         }
         return nil
     }
+
+    private static let boundaryRegexes: [String: NSRegularExpression] = {
+        var out: [String: NSRegularExpression] = [:]
+        for keyword in Constants.Screen.distractionKeywords {
+            let escaped = NSRegularExpression.escapedPattern(for: keyword)
+            out[keyword] = try? NSRegularExpression(pattern: "\\b\(escaped)\\b",
+                                                    options: [.caseInsensitive])
+        }
+        return out
+    }()
 }

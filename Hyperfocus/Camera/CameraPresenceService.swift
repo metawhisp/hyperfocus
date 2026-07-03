@@ -9,6 +9,10 @@ import Vision
 
 final class CameraPresenceService: NSObject, PresenceDetecting, AVCaptureVideoDataOutputSampleBufferDelegate {
     var onEvent: ((PresenceEvent) -> Void)?
+    /// Strict = react to looking away (attention cone); off = presence only. Multi-monitor
+    /// users working on a side display sit OUTSIDE the cone — strict mode would loop them
+    /// through false warning→away→alarm cycles (corner-case hunt, canon #37).
+    var strictAttention = true
 
     private let session = AVCaptureSession()
     private let output = AVCaptureVideoDataOutput()
@@ -82,10 +86,12 @@ final class CameraPresenceService: NSObject, PresenceDetecting, AVCaptureVideoDa
         try? handler.perform([request])
         let faces = request.results ?? []
 
-        // Present = a face is in frame AND roughly facing the screen. A user staring at their phone
-        // or turned away still has a detectable face — the attention cone (|yaw| ≤ ~34°,
-        // |pitch| ≤ ~31°) is what makes the session react to drifting, not just to leaving.
+        // Present = a face is in frame AND (in strict mode) roughly facing the screen. The
+        // attention cone (|yaw| ≤ ~34°, |pitch| ≤ ~31°) reacts to phone-staring/turning
+        // away — but it also fires on users working on a side/external monitor, so it is
+        // a setting: strict off = presence only (canon #37).
         let present = faces.contains { face in
+            guard strictAttention else { return true }
             let yaw = face.yaw?.doubleValue ?? 0
             let pitch = face.pitch?.doubleValue ?? 0
             return abs(yaw) <= 0.6 && abs(pitch) <= 0.55

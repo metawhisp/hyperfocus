@@ -45,6 +45,11 @@ struct SettingsView: View {
             Section("Camera & screen") {
                 Toggle("Use camera for presence check",
                        isOn: boolBinding({ settings.useCameraForPresence }, { settings.useCameraForPresence = $0 }))
+                Toggle("Strict attention (react to looking away)",
+                       isOn: boolBinding({ settings.strictAttention }, { settings.strictAttention = $0 }))
+                Text("Turn off if you work on multiple monitors — glancing at a side display would count as looking away.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Toggle("Analyze screen for distractions",
                        isOn: boolBinding({ settings.useScreenAnalysis }, { settings.useScreenAnalysis = $0 }))
                 Button("Open System camera permissions…", action: onOpenSystemCamera)
