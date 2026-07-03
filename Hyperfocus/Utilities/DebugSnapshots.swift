@@ -56,6 +56,10 @@ enum DebugSnapshots {
         // FLIGHT DECK status-bar menu.
         snap(MenuBarContent(appState: app), "menubar", dir, CGSize(width: 284, height: 340))
 
+        // Statistics window mockup — both tabs.
+        snap(StatsWindowView(initialTab: 0, scroll: false), "stats_overview", dir, CGSize(width: 560, height: 620))
+        snap(StatsWindowView(initialTab: 1, scroll: false), "stats_achievements", dir, CGSize(width: 560, height: 620))
+
         // Card shadow fade check over a LIGHT background: the shadow must reach 0 before the
         // window edge (no grey clipped box). Mirrors the production .card window margins.
         let paddedCard = StartSessionView(onStart: { _ in }, onCancel: {}, onSuggest: { nil })

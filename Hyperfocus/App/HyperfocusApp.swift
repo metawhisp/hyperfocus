@@ -11,10 +11,29 @@ struct HyperfocusApp: App {
     @StateObject private var appState = AppState.shared
 
     var body: some Scene {
-        MenuBarExtra("Hyperfocus", systemImage: "circle.circle") {
+        MenuBarExtra {
             MenuBarContent(appState: appState)
+        } label: {
+            MenuBarLabel(appState: appState)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+/// The menu-bar item itself: a live MM:SS countdown while a session runs (canon #41), the orb
+/// glyph otherwise. Tinted amber at warning, red while away.
+struct MenuBarLabel: View {
+    @ObservedObject var appState: AppState
+
+    var body: some View {
+        let ctx = appState.context
+        if ctx.state.isRunning || ctx.state == .away || ctx.state == .recovering {
+            let total = Int(ctx.remainingFocusTime.rounded())
+            Text(String(format: "%d:%02d", total / 60, total % 60))
+                .monospacedDigit()
+        } else {
+            Image(systemName: "circle.circle")
+        }
     }
 }
 

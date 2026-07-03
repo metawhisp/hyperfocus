@@ -55,6 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AlarmPreviewWindow.show()       // away-alarm sound candidates
             return
         }
+        if ProcessInfo.processInfo.environment["HF_STATS_PREVIEW"] == "1" {
+            StatsPreviewWindow.show()       // Statistics window mockup (overview + achievements)
+            return
+        }
         if ProcessInfo.processInfo.environment["HF_DESIGN_PREVIEW"] == "1" {
             DesignPreviewRenderer.render()   // NEON VOID screen mockups → PNG
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }

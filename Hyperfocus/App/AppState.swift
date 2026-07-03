@@ -42,6 +42,7 @@ final class AppState: ObservableObject {
     func bootstrap() {
         guard !didBootstrap else { return }
         didBootstrap = true
+        LaunchAtLoginService.syncToPreference(settings.launchAtLogin)   // reconcile login item (canon #41)
         if settings.showOrbOnLaunch { coordinator.showOrb() }   // launch: no entrance flourish
         orbLife.startIdleScheduling()
         if !settings.onboardingCompleted {

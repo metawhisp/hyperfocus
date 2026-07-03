@@ -14,6 +14,11 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("General") {
+                Toggle("Launch at login",
+                       isOn: boolBinding({ settings.launchAtLogin }, {
+                           settings.launchAtLogin = $0
+                           LaunchAtLoginService.setEnabled($0)
+                       }))
                 Toggle("Show Focus Orb on launch",
                        isOn: boolBinding({ settings.showOrbOnLaunch }, { settings.showOrbOnLaunch = $0 }))
                 LabeledContent("Orb size") {
