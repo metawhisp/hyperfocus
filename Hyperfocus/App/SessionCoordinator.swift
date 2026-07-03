@@ -665,8 +665,11 @@ final class SessionCoordinator {
         let horizontal: CGFloat
         let top: CGFloat
         let bottom: CGFloat
-        static let card = CardMargins(horizontal: 60, top: 44, bottom: 84)   // FDCard: r34, +20 down
-        static let chip = CardMargins(horizontal: 44, top: 36, bottom: 44)   // ghost digits: lime glow r18 ×1.15
+        // Margins must clear the FULL fade of the widest shadow, not just its radius: FDCard's
+        // black shadow AND the primary button's lime glow are both radius 34, whose gaussian tail
+        // only reaches ~0 by ~3×. Anything tighter clips a still-visible shadow into a grey box.
+        static let card = CardMargins(horizontal: 104, top: 88, bottom: 120)  // r34 shadow + r34 glow (+20 down)
+        static let chip = CardMargins(horizontal: 52, top: 44, bottom: 52)    // ghost digits: lime glow r18
     }
 
     private func makeCardPanel(_ view: some View, app: AppState, level: NSWindow.Level,

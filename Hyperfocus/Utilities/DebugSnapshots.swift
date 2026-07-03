@@ -56,6 +56,13 @@ enum DebugSnapshots {
         // FLIGHT DECK status-bar menu.
         snap(MenuBarContent(appState: app), "menubar", dir, CGSize(width: 284, height: 340))
 
+        // Card shadow fade check over a LIGHT background: the shadow must reach 0 before the
+        // window edge (no grey clipped box). Mirrors the production .card window margins.
+        let paddedCard = StartSessionView(onStart: { _ in }, onCancel: {}, onSuggest: { nil })
+            .environmentObject(app)
+            .padding(.horizontal, 104).padding(.top, 88).padding(.bottom, 120)
+        snapLight(paddedCard, "card_shadow", dir, CGSize(width: 588, height: 640))
+
         snap(AwayModeView(onReturn: {}, onExit: {}).environmentObject(app),
              "away_card", dir, CGSize(width: 360, height: 240))
 
