@@ -181,6 +181,12 @@ final class SettingsStore {
         set { defaults.set(newValue, forKey: Constants.SettingsKeys.onboardingCompleted) }
     }
 
+    /// timeIntervalSinceReferenceDate of the last launch camera nudge — throttles re-nudging.
+    var lastCameraNudgeAt: Double {
+        get { double(Constants.SettingsKeys.lastCameraNudgeAt, Constants.Defaults.lastCameraNudgeAt) }
+        set { defaults.set(newValue, forKey: Constants.SettingsKeys.lastCameraNudgeAt) }
+    }
+
     // MARK: Private helpers
 
     private func bool(_ key: String, _ fallback: Bool) -> Bool {

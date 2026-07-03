@@ -46,6 +46,7 @@ enum Constants {
         static let darkenScreenOnStart = "hf.darkenScreenOnStart"
         static let cinematicCountdownEnabled = "hf.cinematicCountdownEnabled"
         static let onboardingCompleted = "hf.onboardingCompleted"
+        static let lastCameraNudgeAt = "hf.lastCameraNudgeAt"
     }
 
     // MARK: Settings defaults (canon §8)
@@ -78,6 +79,7 @@ enum Constants {
         static let darkenScreenOnStart = true
         static let cinematicCountdownEnabled = true
         static let onboardingCompleted = false
+        static let lastCameraNudgeAt: Double = 0
     }
 
     // MARK: Orb geometry (canon §3)

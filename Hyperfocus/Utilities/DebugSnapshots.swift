@@ -49,6 +49,10 @@ enum DebugSnapshots {
         snap(MiniTimerPill(mm: "25", ss: "00").padding(30), "mini_pill", dir,
              CGSize(width: 160, height: 100))
 
+        // Launch camera nudge — restyled to match the onboarding camera step.
+        snap(PermissionNudgeView(canPrompt: true, onEnable: {}, onOpenSettings: {}, onLater: {}),
+             "camera_nudge", dir, CGSize(width: 460, height: 320))
+
         snap(AwayModeView(onReturn: {}, onExit: {}).environmentObject(app),
              "away_card", dir, CGSize(width: 360, height: 240))
 

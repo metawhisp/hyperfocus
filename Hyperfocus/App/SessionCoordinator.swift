@@ -153,6 +153,11 @@ final class SessionCoordinator {
     func showPermissionNudgeIfNeeded() {
         guard settings.onboardingCompleted, settings.useCameraForPresence,
               !permission.isAuthorized, permissionNudgeWindow == nil else { return }
+        // At most once every 3 days — the core feature deserves a reminder, but not on every
+        // single launch (that just trains the user to dismiss it).
+        let now = Date().timeIntervalSinceReferenceDate
+        guard now - settings.lastCameraNudgeAt >= 3 * 24 * 3600 else { return }
+        settings.lastCameraNudgeAt = now
         let close: () -> Void = { [weak self] in
             self?.permissionNudgeWindow?.orderOut(nil)
             self?.permissionNudgeWindow = nil
@@ -163,7 +168,7 @@ final class SessionCoordinator {
             onOpenSettings: { Self.openSystemCameraPrefs(); close() },
             onLater: close)
         let w = makeStandardWindow(title: "Hyperfocus needs your camera", view: view,
-                                   size: CGSize(width: 430, height: 280))
+                                   size: CGSize(width: 460, height: 320))
         permissionNudgeWindow = w
         present(w)
     }

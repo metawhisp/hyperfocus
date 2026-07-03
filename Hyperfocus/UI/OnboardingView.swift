@@ -314,13 +314,21 @@ struct PermissionNudgeView: View {
     var onLater: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            PixelIcon(pattern: PixelIcon.target, color: FD.amber, pixel: 3.0)
-            Text("CAMERA MAKES IT WORK").font(FD.matrix(18)).foregroundStyle(.white)
-            Text("Presence detection is the core of Hyperfocus — it pauses your session when you leave and calls you back. Without camera access, sessions run as plain timers. Frames never leave your Mac.")
-                .font(.system(size: 11)).foregroundStyle(FD.label)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 350)
+        VStack(spacing: 0) {
+            Spacer().frame(height: 22)
+            PixelIcon(pattern: PixelIcon.target, color: FD.lime, pixel: 3.2)
+                .padding(.bottom, 16)
+            Text("WITHOUT CAMERA — JUST A TIMER")
+                .font(FD.matrix(17)).foregroundStyle(.white)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .padding(.bottom, 22)
+            VStack(alignment: .leading, spacing: 15) {
+                bullet(PixelIcon.target, FD.lime, "Drift noticed in seconds")
+                bullet(PixelIcon.bolt, FD.amber, "Timer pauses the moment you leave")
+                bullet(PixelIcon.flame, FD.redLED, "A sound pulls you back on track")
+            }
+            .padding(.horizontal, 30)
+            Spacer()
             HStack(spacing: 8) {
                 FDGhostButton(title: "Later", action: onLater)
                 if canPrompt {
@@ -331,18 +339,29 @@ struct PermissionNudgeView: View {
                         .keyboardShortcut(.defaultAction)
                 }
             }
+            Text("All on-device. Nothing recorded, ever.")
+                .font(.system(size: 10)).foregroundStyle(FD.label)
+                .padding(.top, 12)
+            Spacer().frame(height: 22)
         }
-        .padding(24)
-        .frame(width: 430, height: 280)
+        .frame(width: 460, height: 320)
         .background(
             ZStack(alignment: .topLeading) {
                 LinearGradient(colors: [FD.deviceHi, FD.device], startPoint: .top, endPoint: .bottom)
                 FDDotGrid()
-                Circle().fill(FD.amber.opacity(0.15)).frame(width: 160, height: 160)
-                    .blur(radius: 60).offset(x: -40, y: -50)
+                Circle().fill(FD.lime.opacity(0.14)).frame(width: 180, height: 180)
+                    .blur(radius: 70).offset(x: -50, y: -60)
             }
         )
         .preferredColorScheme(.dark)
+    }
+
+    private func bullet(_ icon: [String], _ color: Color, _ text: String) -> some View {
+        HStack(spacing: 14) {
+            PixelIcon(pattern: icon, color: color, pixel: 2.2).frame(width: 24)
+            Text(text).font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.82))
+            Spacer(minLength: 0)
+        }
     }
 }
 
