@@ -46,11 +46,6 @@ final class FocusOrbWindowController {
         (panel?.screen ?? NSScreen.main)?.visibleFrame ?? screen.visibleBounds()
     }
 
-    /// Inset of the dot inside the window (so the glow has room and the dot stays centred).
-    private var inset: CGFloat {
-        max(0, (orbWindowSize - CGFloat(app?.settings.orbSize ?? Constants.Defaults.orbSize)) / 2)
-    }
-
     func show() {
         if panel == nil { build() }
         panel?.orderFrontRegardless()
@@ -74,6 +69,9 @@ final class FocusOrbWindowController {
     /// Re-clamp the whole window into the visible bounds after a screen-layout change (canon §3.6).
     func clampIntoVisibleBounds() {
         guard let panel else { return }
+        // While emphasized, re-anchor from the persisted dot without touching the stored position
+        // (the geometry is scale-dependent; only scale-1 state is authoritative for persistence).
+        if isEmphasized { applyEmphasisFrame(animate: false); return }
         let vb = currentVisibleBounds
         let origin = clampWindow(panel.frame.origin, in: vb)
         panel.setFrameOrigin(origin)
@@ -137,12 +135,15 @@ final class FocusOrbWindowController {
         panel = p
     }
 
-    // MARK: Rage emphasis (canon #40) — the away orb grows toward ×2, so its window must grow
-    // too or the glow clips at the 76 pt edge. Resized around the dot's center; the SwiftUI
-    // content is centered and autoresizes, the click backing follows.
+    // MARK: Rage emphasis (canon #40) — the away orb grows toward ×2, so its window grows to fit
+    // the glow. The frame is ALWAYS derived from the persisted dot (the single source of truth,
+    // written only at scale 1) and clamped by the ACTUAL window size, so an away/warning resize
+    // — and any drag or screen change during it — never corrupts the stored position (the five
+    // resize bugs the review found were all "geometry helpers assumed a fixed 76 pt window").
 
     private var backingLayer: CAGradientLayer?
     private var emphasisScale: CGFloat = 1
+    var isEmphasized: Bool { emphasisScale != 1 }
 
     func setEmphasis(for state: SessionState) {
         let scale: CGFloat
@@ -151,37 +152,61 @@ final class FocusOrbWindowController {
         case .warning:           scale = 1.5
         default:                 scale = 1
         }
-        guard scale != emphasisScale, let panel else { return }
+        guard scale != emphasisScale else { return }
         emphasisScale = scale
-        let newSide = orbWindowSize * scale
-        let old = panel.frame
-        let center = CGPoint(x: old.midX, y: old.midY)
-        let newFrame = CGRect(x: center.x - newSide / 2, y: center.y - newSide / 2,
-                              width: newSide, height: newSide)
-        panel.setFrame(newFrame, display: true)
-        panel.contentView?.frame = CGRect(origin: .zero, size: newFrame.size)
+        applyEmphasisFrame(animate: true)
+    }
+
+    /// Size the window to the current emphasis, centered on the PERSISTED dot, clamped on-screen.
+    private func applyEmphasisFrame(animate: Bool) {
+        guard let panel else { return }
+        let vb = currentVisibleBounds
+        let dot = positionStore.load(visibleBounds: vb)          // dot origin, saved only at scale 1
+        let side = orbWindowSize * emphasisScale
+        // Center the window on the dot's center, then clamp with the real side (may lunge inward
+        // in a tight corner — a ×2 orb flush in a corner can't both stay put and not clip).
+        let dotCenter = CGPoint(x: dot.x + orbSizeValue / 2, y: dot.y + orbSizeValue / 2)
+        var origin = CGPoint(x: dotCenter.x - side / 2, y: dotCenter.y - side / 2)
+        origin.x = min(max(origin.x, vb.minX), vb.maxX - side)
+        origin.y = min(max(origin.y, vb.minY), vb.maxY - side)
+        let frame = CGRect(origin: origin, size: CGSize(width: side, height: side))
+        if animate { panel.animator().setFrame(frame, display: true) }
+        else { panel.setFrame(frame, display: true) }
+        panel.contentView?.frame = CGRect(origin: .zero, size: frame.size)
         backingLayer?.frame = panel.contentView?.bounds ?? .zero
     }
 
-    // MARK: Geometry (dot origin <-> window origin)
+    private var orbSizeValue: CGFloat {
+        CGFloat(app?.settings.orbSize ?? Constants.Defaults.orbSize)
+    }
+
+    // MARK: Geometry (dot origin <-> window origin) — the window side depends on the live
+    // emphasis, so all conversions use it; the dot stays centered in whatever the window size is.
+
+    private var currentSide: CGFloat { orbWindowSize * emphasisScale }
 
     private func windowOrigin(forDot dot: CGPoint, in vb: CGRect) -> CGPoint {
-        clampWindow(CGPoint(x: dot.x - inset, y: dot.y - inset), in: vb)
+        let ins = (currentSide - orbSizeValue) / 2
+        return clampWindow(CGPoint(x: dot.x - ins, y: dot.y - ins), in: vb)
     }
 
     private func dotOrigin(fromWindow origin: CGPoint) -> CGPoint {
-        CGPoint(x: origin.x + inset, y: origin.y + inset)
+        let ins = (currentSide - orbSizeValue) / 2
+        return CGPoint(x: origin.x + ins, y: origin.y + ins)
     }
 
     private func clampWindow(_ origin: CGPoint, in vb: CGRect) -> CGPoint {
-        CGPoint(x: min(max(origin.x, vb.minX), vb.maxX - orbWindowSize),
-                y: min(max(origin.y, vb.minY), vb.maxY - orbWindowSize))
+        CGPoint(x: min(max(origin.x, vb.minX), vb.maxX - currentSide),
+                y: min(max(origin.y, vb.minY), vb.maxY - currentSide))
     }
 
     // MARK: Edge snapping (canon §3.5)
 
     private func snapAndSave() {
         guard let panel else { return }
+        // Repositioning is only allowed at rest — while the orb is emphasized (away/warning) a
+        // drag must not persist a scaled-window origin; snap it back to the anchored spot.
+        if isEmphasized { applyEmphasisFrame(animate: true); return }
         let vb = currentVisibleBounds
         let snap = Constants.Orb.edgeSnapDistance
         let margin = Constants.Orb.edgeMargin
