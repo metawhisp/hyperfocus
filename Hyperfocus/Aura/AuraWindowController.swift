@@ -52,6 +52,15 @@ final class AuraWindowController {
         model.boost = on ? 1.9 : 1.0
     }
 
+    /// Away ramp (canon #40): the red frame swells ×3.5 over its first 7 s while the user is away.
+    func setRamp(_ on: Bool) {
+        if on {
+            if model.rampStart == nil { model.rampStart = Date() }
+        } else {
+            model.rampStart = nil
+        }
+    }
+
     /// Rebuild for the current main-screen geometry (canon §3.6 screen-change handling).
     func rebuildWindows() {
         let wasVisible = model.visible

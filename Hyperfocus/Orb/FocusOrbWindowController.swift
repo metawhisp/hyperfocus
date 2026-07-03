@@ -131,9 +131,36 @@ final class FocusOrbWindowController {
         host.frame = container.bounds
         host.autoresizingMask = [.width, .height]
         container.addSubview(host)
+        backingLayer = backing
 
         p.contentView = container
         panel = p
+    }
+
+    // MARK: Rage emphasis (canon #40) — the away orb grows toward ×2, so its window must grow
+    // too or the glow clips at the 76 pt edge. Resized around the dot's center; the SwiftUI
+    // content is centered and autoresizes, the click backing follows.
+
+    private var backingLayer: CAGradientLayer?
+    private var emphasisScale: CGFloat = 1
+
+    func setEmphasis(for state: SessionState) {
+        let scale: CGFloat
+        switch state {
+        case .away, .recovering: scale = 2.4       // dot ×2 + jitter + halo headroom
+        case .warning:           scale = 1.5
+        default:                 scale = 1
+        }
+        guard scale != emphasisScale, let panel else { return }
+        emphasisScale = scale
+        let newSide = orbWindowSize * scale
+        let old = panel.frame
+        let center = CGPoint(x: old.midX, y: old.midY)
+        let newFrame = CGRect(x: center.x - newSide / 2, y: center.y - newSide / 2,
+                              width: newSide, height: newSide)
+        panel.setFrame(newFrame, display: true)
+        panel.contentView?.frame = CGRect(origin: .zero, size: newFrame.size)
+        backingLayer?.frame = panel.contentView?.bounds ?? .zero
     }
 
     // MARK: Geometry (dot origin <-> window origin)

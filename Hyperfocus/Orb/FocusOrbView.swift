@@ -115,6 +115,16 @@ struct OrbMorphStyle {
     let brightness: Double
     let pulseRate: Double       // 0 = steady
 
+    /// Angry-orb body language (canon #40): warning grows a little and jitters; away grows
+    /// on toward ×2 (ramped over 7 s in the view) and shakes hard with angry eyes.
+    var baseScale: Double {
+        switch angerStage { case 2: return 1.35; case 1: return 1.15; default: return 1 }
+    }
+    var jitterAmp: Double {
+        switch angerStage { case 2: return 3.6; case 1: return 1.6; default: return 0 }
+    }
+    let angerStage: Int         // 0 calm · 1 warning · 2 away/recovering
+
     init(state: SessionState) {
         let green = RingToParticlesOrb.onRGB
         let red = RingToParticlesOrb.offRGB
@@ -122,19 +132,19 @@ struct OrbMorphStyle {
         let alarmRed = SIMD3(1.00, 0.30, 0.30)
         switch state {
         case .idle, .exited:
-            progress = 0; rgb = red;      brightness = 3.0; pulseRate = 0   // neon: always visible
+            progress = 0; rgb = red;      brightness = 3.0; pulseRate = 0; angerStage = 0
         case .preparing, .countdown:
-            progress = 1; rgb = green;    brightness = 2.7; pulseRate = 1.6
+            progress = 1; rgb = green;    brightness = 2.7; pulseRate = 1.6; angerStage = 0
         case .active:
-            progress = 1; rgb = green;    brightness = 2.7; pulseRate = 0
+            progress = 1; rgb = green;    brightness = 2.7; pulseRate = 0; angerStage = 0
         case .warning:
-            progress = 1; rgb = amber;    brightness = 2.4; pulseRate = 3.0
+            progress = 1; rgb = amber;    brightness = 2.4; pulseRate = 3.0; angerStage = 1
         case .away, .recovering:
-            progress = 1; rgb = alarmRed; brightness = 2.6; pulseRate = 3.6
+            progress = 1; rgb = alarmRed; brightness = 2.6; pulseRate = 3.6; angerStage = 2
         case .manualPaused:
-            progress = 1; rgb = green;    brightness = 1.1; pulseRate = 0
+            progress = 1; rgb = green;    brightness = 1.1; pulseRate = 0; angerStage = 0
         case .completed:
-            progress = 1; rgb = green;    brightness = 2.6; pulseRate = 1.4
+            progress = 1; rgb = green;    brightness = 2.6; pulseRate = 1.4; angerStage = 0
         }
     }
 }
@@ -182,6 +192,7 @@ struct FocusOrbView: View {
     @EnvironmentObject var app: AppState
     @State private var morph = MorphAnimator()
     @State private var animEpoch = 0   // bumped after a morph ends so `paused` re-evaluates
+    @State private var angerSince: Date?   // when the away (stage-2) rage started — drives the ×2 growth
 
     var body: some View {
         let _ = animEpoch
@@ -207,6 +218,19 @@ struct FocusOrbView: View {
                                        dir: life!.dir)
                 : OrbLifeFrame()
 
+            // Angry body language (canon #40): warning grows to 1.15 and jitters; away keeps
+            // growing toward ×2 over 7 s, shakes harder and wears angry eyes.
+            let anger = style.angerStage
+            let angerScale: Double = {
+                guard anger > 0, !reduce else { return 1 }
+                if anger == 1 { return style.baseScale }
+                let elapsed = angerSince.map { now.timeIntervalSince($0) } ?? 0
+                return style.baseScale + (2.0 - style.baseScale) * min(1, elapsed / 7.0)
+            }()
+            let jitter = reduce ? 0 : style.jitterAmp * (anger == 2 ? min(2.0, angerScale) / 1.6 : 1)
+            let jx = anger > 0 ? (sin(t * 37) + sin(t * 51) * 0.6) * jitter : 0
+            let jy = anger > 0 ? (cos(t * 43) + sin(t * 59) * 0.6) * jitter * 0.7 : 0
+
             ZStack {
                 RingToParticlesOrb(t: t, progress: max(p, f.progress), diameter: 48,
                                    brightness: style.brightness * pulse * hoverBoost * f.brightnessMul,
@@ -215,21 +239,51 @@ struct FocusOrbView: View {
                     OrbEyes(d: 48, leftOpen: f.leftOpen, rightOpen: f.rightOpen, gaze: f.gaze)
                         .opacity(f.eyeFade)
                 }
+                if anger > 0 && !reduce {
+                    AngryFace(d: 48, rage: anger == 2 ? 1 : 0.4)
+                }
             }
             .rotationEffect(.degrees(f.rotationDeg))
-            .offset(x: f.slideNorm * 8)           // small slide so the glow never clips the 76pt window
-            .scaleEffect(f.scale)
+            .offset(x: f.slideNorm * 8 + jx, y: jy)
+            .scaleEffect(f.scale * angerScale)
         }
         .frame(width: orbWindowSize, height: orbWindowSize)
         .scaleEffect(app.orbHovered ? 1.08 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: app.orbHovered)
         .opacity(app.settings.orbOpacity)
-        .onChange(of: app.context.state) { oldState, _ in
+        .onChange(of: app.context.state) { oldState, newState in
             morph.retarget(fromOld: OrbMorphStyle(state: oldState), at: Date())
+            // Rage clock: starts when entering away, keeps running through recovering.
+            let stage = OrbMorphStyle(state: newState).angerStage
+            if stage == 2 { if angerSince == nil { angerSince = Date() } } else { angerSince = nil }
             animEpoch += 1
             // Re-evaluate `paused` once the morph lands (nothing else re-renders the body then).
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { animEpoch += 1 }
         }
         .allowsHitTesting(false)   // the AppKit container owns all mouse handling
+    }
+}
+
+/// Angry brows + eyes for the raging orb (canon #40, gallery style V2). `rage` 0…1 slants
+/// the brows harder as the orb goes from warning to away.
+struct AngryFace: View {
+    let d: CGFloat
+    let rage: Double
+
+    var body: some View {
+        let tilt = 8 + 20 * rage
+        VStack(spacing: d * 0.06) {
+            HStack(spacing: d * 0.14) {
+                Capsule().fill(.white).frame(width: d * 0.16, height: d * 0.05)
+                    .rotationEffect(.degrees(tilt))
+                Capsule().fill(.white).frame(width: d * 0.16, height: d * 0.05)
+                    .rotationEffect(.degrees(-tilt))
+            }
+            HStack(spacing: d * 0.16) {
+                Capsule().fill(.white).frame(width: d * 0.10, height: d * 0.16)
+                Capsule().fill(.white).frame(width: d * 0.10, height: d * 0.16)
+            }
+        }
+        .shadow(color: .black.opacity(0.4), radius: 1)
     }
 }

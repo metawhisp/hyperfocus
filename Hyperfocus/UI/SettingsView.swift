@@ -87,6 +87,9 @@ struct SettingsView: View {
                 Text("Focus Beats 40 Hz works with headphones (different tone per ear).")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 Toggle("Alarm sound", isOn: boolBinding({ settings.alarmEnabled }, { settings.alarmEnabled = $0 }))
+                Picker("Alarm tone", selection: enumBinding({ settings.alarmSound }, { settings.alarmSound = $0 })) {
+                    ForEach(AlarmSound.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
                 LabeledContent("Volume") {
                     Slider(value: doubleBinding({ settings.soundVolume }, { settings.soundVolume = $0 }), in: 0...1).frame(width: 180)
                 }

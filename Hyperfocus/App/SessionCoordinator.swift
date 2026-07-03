@@ -6,6 +6,7 @@
 
 import AppKit
 import AVFoundation
+import ScreenCaptureKit
 import SwiftUI
 
 final class SessionCoordinator {
@@ -222,7 +223,7 @@ final class SessionCoordinator {
         case .hideStartCard:            dismiss(&startPanel)
         case .showCountdown:            showCountdown()
         case .dismissCountdown:         dismiss(&countdownWindow)   // stinger rings out into the timer
-        case .setAura(let state):       aura.setState(state)
+        case .setAura(let state):       aura.setState(state); aura.setRamp(appState?.context.state == .away); orb.setEmphasis(for: appState?.context.state ?? .idle)
         case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); playStartStinger(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
         case .pauseTimer:               focusSound.stop(); screenAnalysis.stop()   // away: alarm owns audio, radar sleeps
         case .resumeTimer:              startFocusSound(); startScreenAnalysis()   // both continue with the session
@@ -230,7 +231,7 @@ final class SessionCoordinator {
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil
-        case .startAlarm:               if settings.alarmEnabled { alarm.start(volume: alarmVolume()) }
+        case .startAlarm:               if settings.alarmEnabled { alarm.start(volume: alarmVolume(), sound: settings.alarmSound) }
         case .stopAlarm:                alarm.stop()
         case .playVoice(let line):      if settings.voicePromptsEnabled { voice.speak(line, persona: settings.voicePersona) }
         case .showAwayCard:             dismissExitConfirm(restoreAura: false); showAwayCard()
@@ -281,6 +282,7 @@ final class SessionCoordinator {
     @discardableResult
     private func beginQuickStart() -> Bool {
         guard let app = appState, app.context.state == .idle, quickStartChips.isEmpty else { return false }
+        updateChipContrast()
         let durations = app.recentDurationsMinutes()
         let orbFrame = orb.currentFrame
         let vb = orb.currentVisibleBounds          // the orb's own screen, not the key window's
@@ -340,6 +342,62 @@ final class SessionCoordinator {
         fallback.y = min(max(fallback.y, vb.minY + 4 - m.bottom),
                          vb.maxY - size.height - 4 + m.top)
         return fallback
+    }
+
+    /// Ghost digits must contrast with whatever is behind them (canon #40): sample the pixels
+    /// around the orb when Screen Recording is granted, otherwise fall back to the system theme.
+    private func updateChipContrast() {
+        guard CGPreflightScreenCaptureAccess() else {
+            quickStartModel.darkBackground =
+                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return
+        }
+        let around = orb.currentFrame.insetBy(dx: -70, dy: -70)
+        Task { [weak self] in
+            guard let dark = await Self.sampleIsDark(around: around) else { return }
+            await MainActor.run { self?.quickStartModel.darkBackground = dark }
+        }
+    }
+
+    /// Mean luminance of the region (global bottom-left coords) via an 8×8 ScreenCaptureKit grab.
+    private static func sampleIsDark(around rect: CGRect) async -> Bool? {
+        guard let primary = NSScreen.screens.first else { return nil }
+        let cgMid = CGPoint(x: rect.midX, y: primary.frame.maxY - rect.midY)
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            let ownApps = content.applications.filter { $0.bundleIdentifier == Bundle.main.bundleIdentifier }
+            guard let display = content.displays.first(where: { $0.frame.contains(cgMid) })
+                ?? content.displays.first else { return nil }
+            let filter = SCContentFilter(display: display, excludingApplications: ownApps,
+                                         exceptingWindows: [])
+            let config = SCStreamConfiguration()
+            let local = CGRect(x: cgMid.x - display.frame.origin.x - rect.width / 2,
+                               y: cgMid.y - display.frame.origin.y - rect.height / 2,
+                               width: rect.width, height: rect.height)
+            config.sourceRect = local.intersection(CGRect(x: 0, y: 0,
+                                                          width: display.frame.width,
+                                                          height: display.frame.height))
+            config.width = 8; config.height = 8
+            config.showsCursor = false
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter,
+                                                                   configuration: config)
+            return meanLuminance(image).map { $0 < 0.5 }
+        } catch { return nil }
+    }
+
+    private static func meanLuminance(_ image: CGImage) -> Double? {
+        let w = 8, h = 8
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &pixels, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var sum = 0.0
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            sum += 0.2126 * Double(pixels[i]) + 0.7152 * Double(pixels[i + 1]) + 0.0722 * Double(pixels[i + 2])
+        }
+        return sum / Double(w * h) / 255.0
     }
 
     /// The chip's grab zone: the VISIBLE digits (window margins are glow room, and with the fat

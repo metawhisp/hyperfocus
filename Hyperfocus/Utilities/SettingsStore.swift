@@ -102,6 +102,14 @@ final class SettingsStore {
         set { defaults.set(newValue, forKey: Constants.SettingsKeys.alarmEnabled) }
     }
 
+    var alarmSound: AlarmSound {
+        get {
+            let raw = defaults.string(forKey: Constants.SettingsKeys.alarmSound) ?? ""
+            return AlarmSound(rawValue: raw) ?? Constants.Defaults.alarmSound
+        }
+        set { defaults.set(newValue.rawValue, forKey: Constants.SettingsKeys.alarmSound) }
+    }
+
     var soundVolume: Double {
         get { double(Constants.SettingsKeys.soundVolume, Constants.Defaults.soundVolume) }
         set { defaults.set(newValue, forKey: Constants.SettingsKeys.soundVolume) }

@@ -107,13 +107,18 @@ final class AlarmLabEngine: ObservableObject {
                         }
                     }
                 case .heartbeat:
+                    // Massive version (user: "громче и массивнее"): 55+82 Hz body, click, long
+                    // decay, saturated — mirrors production AlarmService exactly.
                     let u = t.truncatingRemainder(dividingBy: 1.0)
-                    for (off, amp) in [(0.0, 0.9), (0.18, 0.6)] {
+                    for (off, amp) in [(0.0, 1.8), (0.18, 1.2)] {
                         let b = u - off
-                        if b > 0 && b < 0.14 {
-                            s += Float(sin(twoPi * 55 * b)) * Float(exp(-b * 28)) * Float(amp)
+                        if b > 0 && b < 0.30 {
+                            let body = sin(twoPi * 55 * b) + 0.6 * sin(twoPi * 82 * b)
+                            let click = 0.25 * sin(twoPi * 320 * b) * exp(-b * 60)
+                            s += Float((body * exp(-b * 14) + click) * amp)
                         }
                     }
+                    s = tanh(s * 1.4)
                 }
 
                 let out = max(-1, min(1, s * self.gain))

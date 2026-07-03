@@ -33,6 +33,7 @@ enum Constants {
         static let strictAttention = "hf.strictAttention"
         static let voicePromptsEnabled = "hf.voicePromptsEnabled"
         static let alarmEnabled = "hf.alarmEnabled"
+        static let alarmSound = "hf.alarmSound"
         static let soundVolume = "hf.soundVolume"
         static let voiceStyle = "hf.voiceStyle"
         static let voicePersona = "hf.voicePersona"
@@ -67,6 +68,7 @@ enum Constants {
         static let strictAttention = true         // off = presence only (multi-monitor setups)
         static let voicePromptsEnabled = true
         static let alarmEnabled = true
+        static let alarmSound: AlarmSound = .noise
         static let soundVolume: Double = 0.5
         static let voiceStyle: VoiceStyle = .calm
         static let voicePersona: VoicePersona = .caspian
