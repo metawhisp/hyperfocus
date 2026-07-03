@@ -464,10 +464,14 @@ final class SessionCoordinator {
         window.makeKeyAndOrderFront(nil)      // key so Esc (onExitCommand) aborts
     }
 
+    private let hudPhase = HUDPhaseModel()
+
     private func showHUD() {
         guard hudPanel == nil, let app = appState else { return }
+        hudPhase.collapsed = false
         let view = ActiveHUDView(onExit: { [weak self] in self?.requestExitConfirmation() },
-                                 onCollapse: { [weak self] in self?.collapseHUD() })
+                                 onCollapse: { [weak self] in self?.collapseHUD() },
+                                 phase: hudPhase)
         let panel = makeCardPanel(view, app: app, level: .statusBar)
         panel.isMovableByWindowBackground = true   // the timer card must be user-draggable
         placeNearOrb(panel)
@@ -484,15 +488,19 @@ final class SessionCoordinator {
     private func collapseHUD() {
         guard miniPanel == nil, !isCollapsing, let app = appState, let hud = hudPanel else { return }
         isCollapsing = true
-        // Fade the card out, then dock the pill under the orb and fade it in.
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.22
-            hud.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        // Demo-approved morph: the card springs INTO the orb (anchor points at it), then the
+        // pill drops in under the orb with its own spring.
+        let orbFrame = orb.currentFrame
+        let f = hud.frame
+        if f.width > 0, f.height > 0 {
+            hudPhase.anchor = UnitPoint(x: (orbFrame.midX - f.minX) / f.width,
+                                        y: (f.maxY - orbFrame.midY) / f.height)
+        }
+        hudPhase.collapsed = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.34) { [weak self] in
             guard let self else { return }
             self.isCollapsing = false
-            hud.alphaValue = 1
-            // The session may have ended mid-fade (.stopTimer nils hudPanel) — never dock a
+            // The session may have ended mid-morph (.stopTimer nils hudPanel) — never dock a
             // pill for a dead session or on top of an existing one.
             guard self.hudPanel === hud, self.miniPanel == nil,
                   self.appState?.context.state.isRunning == true else {
@@ -503,12 +511,7 @@ final class SessionCoordinator {
             let view = MiniTimerHUDView(onExpand: { [weak self] in self?.expandHUD() })
             let panel = self.makeCardPanel(view, app: app, level: .statusBar, margins: .chip)
             self.positionMiniUnderOrb(panel)
-            panel.alphaValue = 0
-            panel.orderFrontRegardless()
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.22
-                panel.animator().alphaValue = 1
-            }
+            panel.orderFrontRegardless()   // the pill animates itself in (spring, 0.08s delay)
             self.miniPanel = panel
             // The pill follows the orb while it is being dragged around.
             self.orbMoveObserver = NotificationCenter.default.addObserver(
@@ -518,7 +521,7 @@ final class SessionCoordinator {
                       moved.windowNumber == self.orb.windowNumber else { return }
                 self.positionMiniUnderOrb(mini)
             }
-        })
+        }
     }
 
     private func expandHUD() {
@@ -526,12 +529,8 @@ final class SessionCoordinator {
         // Defense in depth: never resurrect a HUD outside a running session.
         guard appState?.context.state.isRunning == true else { return }
         guard let hud = hudPanel else { showHUD(); return }
-        hud.alphaValue = 0
         hud.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.22
-            hud.animator().alphaValue = 1
-        }
+        hudPhase.collapsed = false   // springs back out of the orb corner
     }
 
     private func teardownMini(animated: Bool = false) {

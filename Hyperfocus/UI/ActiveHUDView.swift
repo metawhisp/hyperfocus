@@ -4,11 +4,19 @@
 
 import SwiftUI
 
+/// Drives the demo-approved collapse morph: the card shrinks toward the orb (anchor points
+/// at it) instead of a flat window fade. Owned by the coordinator; survives collapse cycles.
+final class HUDPhaseModel: ObservableObject {
+    @Published var collapsed = false
+    @Published var anchor: UnitPoint = UnitPoint(x: 1.3, y: -0.3)
+}
+
 struct ActiveHUDView: View {
     @EnvironmentObject var app: AppState
     var onExit: () -> Void
     /// Double-click anywhere on the card → collapse to the mini pill under the orb (canon #33).
     var onCollapse: () -> Void = {}
+    @ObservedObject var phase = HUDPhaseModel()
 
     private var ctx: SessionContext { app.context }
 
@@ -42,5 +50,9 @@ struct ActiveHUDView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { onCollapse() }
+        // Demo-approved morph: shrink toward the orb and fade out early (soft feel).
+        .scaleEffect(phase.collapsed ? 0.1 : 1, anchor: phase.anchor)
+        .opacity(phase.collapsed ? 0 : 1)
+        .animation(.spring(response: 0.55, dampingFraction: 0.86), value: phase.collapsed)
     }
 }
