@@ -223,7 +223,7 @@ final class SessionCoordinator {
         case .showCountdown:            showCountdown()
         case .dismissCountdown:         dismiss(&countdownWindow)   // stinger rings out into the timer
         case .setAura(let state):       aura.setState(state)
-        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
+        case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); playStartStinger(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
         case .pauseTimer:               focusSound.stop(); screenAnalysis.stop()   // away: alarm owns audio, radar sleeps
         case .resumeTimer:              startFocusSound(); startScreenAnalysis()   // both continue with the session
         case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); teardownMini(); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession(); stopStinger()
@@ -462,9 +462,9 @@ final class SessionCoordinator {
         panel.makeKeyAndOrderFront(nil)
     }
 
-    // MARK: Session-start stinger — a short cinematic riser (bundled, ~1.7 s). It fires on the
-    // FINAL "FOCUS" frame, not the intro: under the "Enter Hyperfocus Mode" voice line it was
-    // inaudible, so it now rises after the numbers and climaxes into the timer reveal.
+    // MARK: Session-start stinger — a short cinematic riser (bundled, ~1.7 s). It fires with the
+    // .startTimer effect, exactly as the timer HUD appears (under the "Enter Hyperfocus Mode"
+    // voice line it was inaudible; landing it with the timer reveal makes it a clear hit).
 
     private var stingerPlayer: AVAudioPlayer?
 
@@ -492,8 +492,8 @@ final class SessionCoordinator {
         let frame = screen.mainScreenFrame()
         let view = CountdownOverlayView(
             onFinished: { [weak self] in self?.appState?.send(.countdownCompleted) },
-            onAbort: { [weak self] in self?.appState?.send(.userExited) },
-            onClimax: { [weak self] in self?.playStartStinger() }   // rises on "FOCUS" → timer
+            onAbort: { [weak self] in self?.appState?.send(.userExited) }
+            // stinger fires on .startTimer (below) so it lands exactly with the timer reveal
         ).environmentObject(app)
 
         let window = KeyablePanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel],
