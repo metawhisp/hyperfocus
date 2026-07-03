@@ -57,13 +57,15 @@ echo "▸ [5/6] Stapling the ticket onto the app…"
 xcrun stapler staple "$APP"
 spctl -a -vvv --type execute "$APP"
 
-echo "▸ [6/6] Building the drag-install DMG…"
+echo "▸ [6/6] Building the drag-install DMG (notarize the DMG itself, then staple)…"
 rm -f "$DMG"
 STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "Hyperfocus" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"
+# The DMG must be notarized too or `stapler staple` on it fails (only the app was submitted above).
+xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "$DMG"
 
 echo ""
