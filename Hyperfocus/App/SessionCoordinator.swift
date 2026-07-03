@@ -216,12 +216,12 @@ final class SessionCoordinator {
         case .showStartCard:            showStartCard()
         case .hideStartCard:            dismiss(&startPanel)
         case .showCountdown:            showCountdown()
-        case .dismissCountdown:         dismiss(&countdownWindow); stopStinger()
+        case .dismissCountdown:         dismiss(&countdownWindow)   // stinger rings out into the timer
         case .setAura(let state):       aura.setState(state)
         case .startTimer:               appState?.markTimerStarted(); timer.start(); showHUD(); startScreenAnalysis(); focusSound.beginSession(); startFocusSound()
         case .pauseTimer:               focusSound.stop(); screenAnalysis.stop()   // away: alarm owns audio, radar sleeps
         case .resumeTimer:              startFocusSound(); startScreenAnalysis()   // both continue with the session
-        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); teardownMini(); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession()
+        case .stopTimer:                appState?.markSessionEnded(); timer.stop(); dismiss(&hudPanel); teardownMini(); screenAnalysis.stop(); dismiss(&nudgePanel); dismissExitConfirm(restoreAura: false); focusSound.stop(); focusSound.endSession(); stopStinger()
         case .startCameraWarmup:        startPresence(warmup: true)
         case .startPresenceDetection:   startPresence(warmup: false)
         case .stopCamera:               presence?.stop(); presence = nil
@@ -457,17 +457,17 @@ final class SessionCoordinator {
         panel.makeKeyAndOrderFront(nil)
     }
 
-    // MARK: Session-start stinger — a short cinematic transition (bundled, 2 s) fires the moment
-    // the countdown appears, quietly under the voice: the launch is audible, not just spoken.
+    // MARK: Session-start stinger — a short cinematic riser (bundled, ~1.7 s). It fires on the
+    // FINAL "FOCUS" frame, not the intro: under the "Enter Hyperfocus Mode" voice line it was
+    // inaudible, so it now rises after the numbers and climaxes into the timer reveal.
 
     private var stingerPlayer: AVAudioPlayer?
 
     private func playStartStinger() {
         guard let url = Bundle.main.url(forResource: "session-start", withExtension: "wav"),
               let p = try? AVAudioPlayer(contentsOf: url) else { return }
-        // The clip is a quiet riser (RMS ≈ −21 dB): at ×0.5 it drowned under the voice
-        // ("а где звук?") — ×1.6 keeps it just beneath the voice line but clearly there.
-        p.volume = min(1, Float(settings.soundVolume) * 1.6)
+        // Nothing competes with it now — a clear cinematic hit into the timer.
+        p.volume = min(1, Float(settings.soundVolume) * 1.8)
         p.prepareToPlay()
         p.play()
         stingerPlayer = p
@@ -484,11 +484,11 @@ final class SessionCoordinator {
 
     private func showCountdown() {
         guard countdownWindow == nil, let app = appState else { return }
-        playStartStinger()                             // sound first, then the 3·2·1 sequence
         let frame = screen.mainScreenFrame()
         let view = CountdownOverlayView(
             onFinished: { [weak self] in self?.appState?.send(.countdownCompleted) },
-            onAbort: { [weak self] in self?.appState?.send(.userExited) }
+            onAbort: { [weak self] in self?.appState?.send(.userExited) },
+            onClimax: { [weak self] in self?.playStartStinger() }   // rises on "FOCUS" → timer
         ).environmentObject(app)
 
         let window = KeyablePanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel],

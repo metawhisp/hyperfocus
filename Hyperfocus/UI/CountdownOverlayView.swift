@@ -6,8 +6,12 @@ struct CountdownOverlayView: View {
     @EnvironmentObject var app: AppState
     var onFinished: () -> Void
     var onAbort: () -> Void
+    /// Fired once when the final "FOCUS" frame appears — the start stinger rises here, after the
+    /// voice has counted the numbers down, so it climaxes into the timer reveal (user request).
+    var onClimax: () -> Void = {}
 
     @State private var index = 0
+    @State private var didClimax = false
     @State private var textOpacity = 0.0
     @State private var textScale = 0.85
 
@@ -54,6 +58,11 @@ struct CountdownOverlayView: View {
     }
 
     private func runStep() {
+        // The last frame ("FOCUS") is the go moment — rise the stinger into the timer here.
+        if index == sequence.count - 1 && !didClimax {
+            didClimax = true
+            onClimax()
+        }
         let reduce = app.settings.reduceMotion
         textOpacity = 0; textScale = reduce ? 1.0 : 0.85
         withAnimation(.easeOut(duration: reduce ? 0.15 : (cinematic ? 0.4 : 0.28))) {
