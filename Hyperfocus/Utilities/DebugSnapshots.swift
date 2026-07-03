@@ -45,6 +45,10 @@ enum DebugSnapshots {
                                                                      remaining: 1122, state: .active)),
              "hud", dir, CGSize(width: 300, height: 190))
 
+        // Collapsed-HUD pill — regression check for the fittingSize "…:3" truncation.
+        snap(MiniTimerPill(mm: "25", ss: "00").padding(30), "mini_pill", dir,
+             CGSize(width: 160, height: 100))
+
         snap(AwayModeView(onReturn: {}, onExit: {}).environmentObject(app),
              "away_card", dir, CGSize(width: 360, height: 240))
 
