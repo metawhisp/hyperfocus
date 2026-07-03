@@ -364,11 +364,19 @@ final class SessionCoordinator {
     private func startScreenAnalysis() {
         guard settings.useScreenAnalysis else { return }
         lastNudgeAt = .distantPast
-        screenAnalysis.onDistraction = { [weak self] _ in self?.showNudge() }
+        screenAnalysis.onDistraction = { [weak self] term in self?.showNudge(for: term) }
         screenAnalysis.start()   // no-op unless Screen Recording is authorized
     }
 
-    private func showNudge() {
+    /// True when the mission itself is about the matched service (EN or RU) — that's the work.
+    private func missionMentions(_ term: String) -> Bool {
+        guard let mission = appState?.context.config?.mission.lowercased() else { return false }
+        let aliases = Constants.Screen.keywordAliases[term] ?? [term.trimmingCharacters(in: .whitespaces)]
+        return aliases.contains { mission.contains($0) }
+    }
+
+    private func showNudge(for term: String) {
+        guard !missionMentions(term) else { return }
         // One nudge a minute is a reminder; one per 12 s scan is nagging.
         guard Date().timeIntervalSince(lastNudgeAt) >= 60 else { return }
         guard let app = appState, nudgePanel == nil else { return }

@@ -170,6 +170,16 @@ enum Constants {
             "youtube", "tiktok", "instagram", "twitter", " x.com", "reddit", "netflix",
             "twitch", "facebook", "for you", "shorts", "tweet", "9gag", "pornhub",
         ]
+        /// If the MISSION itself mentions the matched service (in EN or RU), it's the work,
+        /// not a distraction — "смонтировать ютуб ролик" must never be nudged about YouTube.
+        static let keywordAliases: [String: [String]] = [
+            "youtube": ["ютуб", "youtube", "видео"], "shorts": ["ютуб", "youtube", "шортс"],
+            "tiktok": ["тикток", "tiktok"], "instagram": ["инстаграм", "инст", "reels", "рилс"],
+            "twitter": ["твиттер", "твит", "twitter"], " x.com": ["твиттер", "x.com"],
+            "tweet": ["твиттер", "твит", "twitter"], "reddit": ["реддит", "reddit"],
+            "netflix": ["нетфликс", "netflix"], "twitch": ["твич", "twitch", "стрим"],
+            "facebook": ["фейсбук", "facebook"], "for you": ["тикток", "tiktok"],
+        ]
     }
 
     // MARK: Storage (canon §7)
