@@ -41,7 +41,7 @@ struct MenuBarContent: View {
             .keyboardShortcut("n", modifiers: .command)
 
             hairline
-            MenuRow(icon: "circle.dotted", title: "Show Focus Orb") { run { appState.showOrb() } }
+            MenuRow(icon: "circle.dotted", title: "Show Focus Orb") { run { appState.showOrbFromMenu() } }
             MenuRow(icon: "gearshape.fill", title: "Settings") { run { appState.showSettings() } }
             MenuRow(icon: "clock.arrow.circlepath", title: "Session History") { run { appState.showHistory() } }
 
@@ -57,6 +57,8 @@ struct MenuBarContent: View {
                     MenuSubRow(title: "Simulate: Face Missing") { run { appState.simulateMissing() } }
                     MenuSubRow(title: "Simulate: Jump to Away") { run { appState.simulateJumpToAway() } }
                     MenuSubRow(title: "Simulate: Return") { run { appState.simulateReturn() } }
+                    MenuSubRow(title: "Orb: random life beat") { run { appState.orbLife.debugFireRandom() } }
+                    MenuSubRow(title: "Orb: spin entrance") { run { appState.orbLife.playEntrance() } }
                     Toggle("Use Simulated Camera", isOn: $appState.useSimulatedCamera)
                         .toggleStyle(.switch).tint(FD.lime)
                         .font(.system(size: 12)).foregroundStyle(.white.opacity(0.8))

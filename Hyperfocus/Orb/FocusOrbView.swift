@@ -187,10 +187,12 @@ struct FocusOrbView: View {
         let _ = animEpoch
         let style = OrbMorphStyle(state: app.context.state)
         let reduce = app.settings.reduceMotion
+        let life = app.orbLife.beat        // idle liveliness beat (canon #39), nil most of the time
         // Battery: the idle red ring is static — stop the render loop entirely once the morph is
-        // done (measured 5-7% CPU when redrawing the static ring at 30 fps).
+        // done (measured 5-7% CPU when redrawing the static ring at 30 fps). A liveliness beat
+        // un-pauses it for its ~2 s and it re-pauses after.
         let isStatic = style.progress == 0 && style.pulseRate == 0
-        let paused = reduce || (isStatic && !morph.isAnimating(at: Date()))
+        let paused = reduce || (isStatic && life == nil && !morph.isAnimating(at: Date()))
         TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: paused)) { tl in
             let now = tl.date
             let t = reduce ? 0 : now.timeIntervalSinceReferenceDate
@@ -198,9 +200,25 @@ struct FocusOrbView: View {
             let rgb = reduce ? style.rgb : morph.color(toward: style.rgb, at: now)
             let pulse = (style.pulseRate > 0 && !reduce) ? 1 + 0.10 * sin(t * style.pulseRate) : 1
             let hoverBoost = app.orbHovered ? 1.18 : 1.0
-            RingToParticlesOrb(t: t, progress: p, diameter: 48,
-                               brightness: style.brightness * pulse * hoverBoost,
-                               rgbOverride: rgb)
+
+            // A liveliness beat only plays over the calm idle ring (not mid-morph, not reduce-motion).
+            let f = (life != nil && !reduce && isStatic)
+                ? OrbLifeFrame.compute(life!.variant, elapsed: now.timeIntervalSince(life!.start),
+                                       dir: life!.dir)
+                : OrbLifeFrame()
+
+            ZStack {
+                RingToParticlesOrb(t: t, progress: max(p, f.progress), diameter: 48,
+                                   brightness: style.brightness * pulse * hoverBoost * f.brightnessMul,
+                                   rgbOverride: rgb)
+                if f.eyeFade > 0 {
+                    OrbEyes(d: 48, leftOpen: f.leftOpen, rightOpen: f.rightOpen, gaze: f.gaze)
+                        .opacity(f.eyeFade)
+                }
+            }
+            .rotationEffect(.degrees(f.rotationDeg))
+            .offset(x: f.slideNorm * 8)           // small slide so the glow never clips the 76pt window
+            .scaleEffect(f.scale)
         }
         .frame(width: orbWindowSize, height: orbWindowSize)
         .scaleEffect(app.orbHovered ? 1.08 : 1.0)

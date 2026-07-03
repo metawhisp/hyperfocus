@@ -19,19 +19,31 @@ final class AppState: ObservableObject {
     let store = SessionStore()
     let achievements = AchievementsStore()
     let screenContext = ScreenContextService()
+    let orbLife = OrbLifeModel()               // idle-orb liveliness (canon #39)
     private let coordinator: SessionCoordinator
     private var didBootstrap = false
+
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
         coordinator = SessionCoordinator(settings: settings, store: store)
         coordinator.attach(self)
+        orbLife.isIdle = { [weak self] in
+            guard let s = self else { return false }
+            return s.context.state == .idle || s.context.state == .exited
+        }
+        // Re-render orb observers when a liveliness beat starts/ends (orbLife is a child model).
+        orbLife.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
     }
 
     /// Called once from AppDelegate.applicationDidFinishLaunching.
     func bootstrap() {
         guard !didBootstrap else { return }
         didBootstrap = true
-        if settings.showOrbOnLaunch { coordinator.showOrb() }
+        if settings.showOrbOnLaunch { coordinator.showOrb() }   // launch: no entrance flourish
+        orbLife.startIdleScheduling()
         if !settings.onboardingCompleted {
             coordinator.showOnboarding()
         } else {
@@ -43,7 +55,11 @@ final class AppState: ObservableObject {
     /// Dispatch an event through the reducer, then hand the effects to the coordinator.
     func send(_ event: SessionEvent) {
         if case .enterHyperfocus = event { snapshotThresholds() }
+        let wasIdle = context.state == .idle || context.state == .exited
         let effects = SessionReducer.reduce(&context, event)
+        let nowIdle = context.state == .idle || context.state == .exited
+        // Leaving idle → kill any playful beat so the orb doesn't clown into a session.
+        if wasIdle && !nowIdle { orbLife.interrupt() }
         coordinator.perform(effects)
     }
 
@@ -140,6 +156,12 @@ final class AppState: ObservableObject {
     func startSessionFromMenu() {
         coordinator.showOrb()
         if context.state == .idle { send(.orbClicked) }
+    }
+
+    /// Menu "Show Focus Orb" — reveal the orb with the spin entrance (canon #39).
+    func showOrbFromMenu() {
+        coordinator.showOrb()
+        if context.state == .idle || context.state == .exited { orbLife.playEntrance() }
     }
 
     func showOrb() { coordinator.showOrb() }

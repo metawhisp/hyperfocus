@@ -13,8 +13,7 @@ import AppKit
 
 private let RED = RingToParticlesOrb.offRGB   // every variant stays on the idle red
 
-enum LifeVariant: Int, CaseIterable {
-    case blink, spin, gaze, pulse, tilt, orbit
+private extension OrbLifeVariant {
     var title: String {
         switch self {
         case .blink: return "A · BLINK"
@@ -22,7 +21,7 @@ enum LifeVariant: Int, CaseIterable {
         case .gaze:  return "C · GAZE"
         case .pulse: return "D · PULSE"
         case .tilt:  return "E · TILT + WINK"
-        case .orbit: return "F · ORBIT-OUT"
+        case .orbit: return "F · ROLL-OUT"
         }
     }
     var hint: String {
@@ -32,111 +31,38 @@ enum LifeVariant: Int, CaseIterable {
         case .gaze:  return "с любопытством озирается"
         case .pulse: return "двойной удар сердца — свечение"
         case .tilt:  return "наклоняет «голову», подмигивает"
-        case .orbit: return "крутится и отъезжает вбок, возвращается"
-        }
-    }
-    /// Beat length in seconds.
-    var duration: Double {
-        switch self {
-        case .blink, .gaze, .tilt: return 2.2
-        case .spin, .pulse:        return 1.8
-        case .orbit:               return 2.6
+        case .orbit: return "перекатывается вбок и возвращается"
         }
     }
 }
 
-// MARK: The idle orb + one optional life-beat
+// MARK: The idle orb + one optional life-beat — renders from the SHARED OrbLifeFrame (Orb/OrbLife.swift)
 
-/// Renders the red idle orb; if `lt` (seconds-into-beat) is non-nil, overlays the variant's
-/// expression. `entering` adds the summon spring-scale (only the hero/entrance uses it).
+/// `lt` (seconds-into-beat) non-nil → play the variant's expression. `entering` adds the
+/// summon spring-scale (hero/entrance only). Slide is scaled to this preview's larger frame.
 private struct OrbLifeView: View {
-    let variant: LifeVariant
+    let variant: OrbLifeVariant
     let lt: Double?
     var d: CGFloat = 54
     var t: Double = 0
-    var entering: Double = 1     // 0…1 entrance scale factor input
+    var dir: Double = 1
+    var entering: Double = 1
 
     var body: some View {
-        let active = lt != nil
-        let p = lt ?? 0
-        let dur = variant.duration
-        let env = active ? sin(min(1, p / dur) * .pi) : 0     // 0→1→0 across the beat
-
-        // spin / orbit inflate the ring to a red sphere; others stay a ring.
-        let prog = (variant == .spin || variant == .orbit) ? 0.92 * env : 0
-        let spinRot = t * (1 + 6 * env * (variant == .spin || variant == .orbit ? 1 : 0))
-        let bright = 3.0 + (variant == .pulse ? 1.7 * pulseEnv(p, active) : 0)
-
-        // orbit slides out along x and back; direction seeded so it varies.
-        let slide = variant == .orbit ? sin(env * .pi) * d * 0.5 * orbitDir : 0
-        // tilt cocks the whole head.
-        let tilt = variant == .tilt ? sin(env * .pi * 2) * 13 * env : 0
-        // pulse gives a little size bump.
-        let bump = variant == .pulse ? 0.12 * pulseEnv(p, active) : 0
-
+        let f = lt != nil ? OrbLifeFrame.compute(variant, elapsed: lt!, dir: dir) : OrbLifeFrame()
         ZStack {
-            RingToParticlesOrb(t: spinRot, progress: prog, diameter: d,
-                               brightness: bright, rgbOverride: RED)
+            RingToParticlesOrb(t: t, progress: f.progress, diameter: d,
+                               brightness: 3.0 * f.brightnessMul, rgbOverride: RED)
                 .frame(width: d * 2.4, height: d * 2.4)
-            if hasEyes {
-                eyes(env: env, p: p, active: active)
+            if f.eyeFade > 0 {
+                OrbEyes(d: d, leftOpen: f.leftOpen, rightOpen: f.rightOpen, gaze: f.gaze)
+                    .opacity(f.eyeFade)
             }
         }
-        .rotationEffect(.degrees(tilt))
-        .offset(x: slide)
-        .scaleEffect(entering * (1 + bump))
+        .rotationEffect(.degrees(f.rotationDeg))
+        .offset(x: f.slideNorm * d * 0.5)     // preview has room for a big roll
+        .scaleEffect(entering * f.scale)
         .opacity(entering < 0.05 ? 0 : 1)
-    }
-
-    private var hasEyes: Bool { variant == .blink || variant == .gaze || variant == .tilt }
-    private var orbitDir: Double { 1 }   // preview: consistent right; prod randomizes
-
-    private func pulseEnv(_ p: Double, _ active: Bool) -> Double {
-        guard active else { return 0 }
-        // two quick bumps at ~0.5s and ~0.9s
-        return max(bump(p, 0.5, 0.18), bump(p, 0.95, 0.18))
-    }
-    private func bump(_ p: Double, _ c: Double, _ w: Double) -> Double {
-        let x = abs(p - c) / w
-        return x >= 1 ? 0 : 1 - x
-    }
-
-    @ViewBuilder
-    private func eyes(env: Double, p: Double, active: Bool) -> some View {
-        let fade = active ? min(1, env * 2.2) : 0        // eyes fade in/out with the beat
-        let blink = variant == .blink ? bump(p, 1.0, 0.14) : 0
-        let wink  = variant == .blink ? bump(p, 1.6, 0.16)
-                  : variant == .tilt  ? bump(p, 1.4, 0.18) : 0
-        let gaze  = variant == .gaze ? sin((p / variant.duration) * .pi * 2) : 0
-        let gBlink = variant == .gaze ? bump(p, 1.9, 0.14) : 0
-        OrbEyes(d: d,
-                leftOpen: (1 - max(blink, gBlink)) * fade,
-                rightOpen: (1 - max(blink, wink, gBlink)) * fade,
-                gaze: gaze)
-            .opacity(fade)
-    }
-}
-
-/// Two eyes in the orb's hollow centre.
-private struct OrbEyes: View {
-    let d: CGFloat
-    var leftOpen: Double = 1
-    var rightOpen: Double = 1
-    var gaze: Double = 0
-
-    var body: some View {
-        let eyeW = d * 0.11
-        let eyeH = d * 0.22
-        HStack(spacing: d * 0.16) {
-            eye(open: leftOpen, w: eyeW, h: eyeH)
-            eye(open: rightOpen, w: eyeW, h: eyeH)
-        }
-        .offset(x: gaze * d * 0.05)
-    }
-    private func eye(open: Double, w: CGFloat, h: CGFloat) -> some View {
-        Capsule().fill(.white)
-            .frame(width: w, height: max(w * 0.45, h * open))
-            .shadow(color: .white.opacity(0.5), radius: 2)
     }
 }
 
@@ -159,7 +85,7 @@ private struct ProdSimHero: View {
             let slotLen = 5.5
             let slot = Int(idle / slotLen)
             let local = idle - Double(slot) * slotLen
-            let v = LifeVariant(rawValue: (slot * 7 + 2) % LifeVariant.allCases.count)!
+            let v = OrbLifeVariant(rawValue: (slot * 7 + 2) % OrbLifeVariant.allCases.count)!
             let active = local < v.duration
             return OrbLifeView(variant: v, lt: active ? local : nil, d: 70, t: t, entering: 1)
         }()
@@ -181,10 +107,10 @@ struct OrbLifeGalleryView: View {
 
                 Grid(horizontalSpacing: 12, verticalSpacing: 12) {
                     GridRow {
-                        ForEach([LifeVariant.blink, .spin, .gaze], id: \.self) { cell($0, t) }
+                        ForEach([OrbLifeVariant.blink, .spin, .gaze], id: \.self) { cell($0, t) }
                     }
                     GridRow {
-                        ForEach([LifeVariant.pulse, .tilt, .orbit], id: \.self) { cell($0, t) }
+                        ForEach([OrbLifeVariant.pulse, .tilt, .orbit], id: \.self) { cell($0, t) }
                     }
                 }
             }
@@ -209,7 +135,7 @@ struct OrbLifeGalleryView: View {
         }
     }
 
-    private func cell(_ v: LifeVariant, _ t: Double) -> some View {
+    private func cell(_ v: OrbLifeVariant, _ t: Double) -> some View {
         // Each reference cell loops its beat every 5 s so it can be judged (no entrance).
         let period = v.duration + 2.6
         let u = t.truncatingRemainder(dividingBy: period)
