@@ -359,14 +359,20 @@ final class SessionCoordinator {
 
     // MARK: Screen analysis (local distraction detection)
 
+    private var lastNudgeAt: Date = .distantPast
+
     private func startScreenAnalysis() {
         guard settings.useScreenAnalysis else { return }
+        lastNudgeAt = .distantPast
         screenAnalysis.onDistraction = { [weak self] _ in self?.showNudge() }
         screenAnalysis.start()   // no-op unless Screen Recording is authorized
     }
 
     private func showNudge() {
+        // One nudge a minute is a reminder; one per 12 s scan is nagging.
+        guard Date().timeIntervalSince(lastNudgeAt) >= 60 else { return }
         guard let app = appState, nudgePanel == nil else { return }
+        lastNudgeAt = Date()
         let mission = app.context.config?.mission ?? "your task"
         let panel = makeCardPanel(NudgeView(mission: mission), app: app, level: .floating)
         placeNearOrb(panel)
