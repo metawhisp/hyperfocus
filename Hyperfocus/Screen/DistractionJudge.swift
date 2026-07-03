@@ -23,7 +23,9 @@ final class DistractionJudge {
     }
 
     /// Calls back on the main thread: true = genuinely distracted, false = the screen serves
-    /// the mission. Unavailable model / errors resolve to true (trust the keyword hit).
+    /// the mission. Tiered by what THIS Mac can do (the app must serve every Mac, not just
+    /// Apple Intelligence ones): built-in LLM when available, otherwise a language-agnostic
+    /// lexical relevance check that runs everywhere down to Intel + macOS 15.
     func isDistracted(mission: String, matchedTerm: String, screenLines: [String],
                       completion: @escaping (Bool) -> Void) {
         #if canImport(FoundationModels)
@@ -37,7 +39,25 @@ final class DistractionJudge {
             return
         }
         #endif
-        DispatchQueue.main.async { completion(true) }
+        let onMission = Self.lexicalOnMission(mission: mission, screenLines: screenLines)
+        NSLog("HFJUDGE(lexical) term=%@ verdict=%@", matchedTerm,
+              onMission ? "ON-MISSION" : "DISTRACTED")
+        DispatchQueue.main.async { completion(!onMission) }
+    }
+
+    /// Universal tier: do the mission's own words appear in the recognized screen text?
+    /// Prefix matching (first 5 chars of tokens ≥4 chars) absorbs RU/EN inflections without
+    /// any ML — "отчёт" connects to "отчёта", "video" to "videos". Two hits (or every mission
+    /// token for short missions) reads as on-mission; anything less sides with the keyword hit.
+    static func lexicalOnMission(mission: String, screenLines: [String]) -> Bool {
+        let separators = CharacterSet.alphanumerics.inverted
+        let tokens = mission.lowercased()
+            .components(separatedBy: separators)
+            .filter { $0.count >= 4 }
+        guard !tokens.isEmpty else { return false }
+        let screen = screenLines.joined(separator: " ").lowercased()
+        let hits = tokens.filter { screen.contains($0.prefix(5)) }.count
+        return hits >= min(2, tokens.count)
     }
 
     #if canImport(FoundationModels)

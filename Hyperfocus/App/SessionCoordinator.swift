@@ -378,14 +378,24 @@ final class SessionCoordinator {
         return aliases.contains { mission.contains($0) }
     }
 
-    /// Keyword prefilter hit → cheap mission check → (when Apple Intelligence is on) the
-    /// on-device context judge decides whether the screen actually serves the mission.
+    private var pendingDistraction: (term: String, at: Date)?
+
+    /// Keyword prefilter hit → cheap mission check → dwell (must persist across two scans) →
+    /// the context judge (on-device LLM where available, lexical relevance everywhere else).
     private func handleDistraction(term: String, screenLines: [String]) {
         guard !missionMentions(term) else { return }
+        // A distraction must survive TWO consecutive scans (~24 s) — a keyword flashing by in
+        // one frame is not drifting.
+        let now = Date()
+        if pendingDistraction?.term != term || now.timeIntervalSince(pendingDistraction?.at ?? .distantPast) > 40 {
+            pendingDistraction = (term, now)
+            return
+        }
+        pendingDistraction = nil
         // One radar action a minute is a reminder; one per 12 s scan is nagging. The window
         // is claimed BEFORE judging so the model also runs at most once a minute.
-        guard Date().timeIntervalSince(lastNudgeAt) >= 60 else { return }
-        lastNudgeAt = Date()
+        guard now.timeIntervalSince(lastNudgeAt) >= 60 else { return }
+        lastNudgeAt = now
         guard let mission = appState?.context.config?.mission else { return }
         distractionJudge.isDistracted(mission: mission, matchedTerm: term,
                                       screenLines: screenLines) { [weak self] distracted in
