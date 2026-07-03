@@ -10,8 +10,9 @@ import ScreenCaptureKit
 import Vision
 
 final class ScreenAnalysisService {
-    /// Called on the main thread with the matched distraction term when one is detected on screen.
-    var onDistraction: ((String) -> Void)?
+    /// Called on the main thread with the matched distraction term and the recognized screen
+    /// lines (for the context judge) when a distraction is detected on screen.
+    var onDistraction: ((String, [String]) -> Void)?
 
     private var timer: Timer?
     private var running = false
@@ -41,7 +42,7 @@ final class ScreenAnalysisService {
             guard let self, let image = await self.captureMainDisplay() else { return }
             let terms = self.recognizeText(in: image)                     // in-memory only
             guard let hit = self.matchDistraction(terms) else { return }
-            await MainActor.run { self.onDistraction?(hit) }
+            await MainActor.run { self.onDistraction?(hit, terms) }
             // `image` goes out of scope here — never persisted or transmitted.
         }
     }

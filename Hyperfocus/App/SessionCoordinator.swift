@@ -360,11 +360,14 @@ final class SessionCoordinator {
     // MARK: Screen analysis (local distraction detection)
 
     private var lastNudgeAt: Date = .distantPast
+    private let distractionJudge = DistractionJudge()
 
     private func startScreenAnalysis() {
         guard settings.useScreenAnalysis else { return }
         lastNudgeAt = .distantPast
-        screenAnalysis.onDistraction = { [weak self] term in self?.showNudge(for: term) }
+        screenAnalysis.onDistraction = { [weak self] term, lines in
+            self?.handleDistraction(term: term, screenLines: lines)
+        }
         screenAnalysis.start()   // no-op unless Screen Recording is authorized
     }
 
@@ -375,12 +378,23 @@ final class SessionCoordinator {
         return aliases.contains { mission.contains($0) }
     }
 
-    private func showNudge(for term: String) {
+    /// Keyword prefilter hit → cheap mission check → (when Apple Intelligence is on) the
+    /// on-device context judge decides whether the screen actually serves the mission.
+    private func handleDistraction(term: String, screenLines: [String]) {
         guard !missionMentions(term) else { return }
-        // One nudge a minute is a reminder; one per 12 s scan is nagging.
+        // One radar action a minute is a reminder; one per 12 s scan is nagging. The window
+        // is claimed BEFORE judging so the model also runs at most once a minute.
         guard Date().timeIntervalSince(lastNudgeAt) >= 60 else { return }
-        guard let app = appState, nudgePanel == nil else { return }
         lastNudgeAt = Date()
+        guard let mission = appState?.context.config?.mission else { return }
+        distractionJudge.isDistracted(mission: mission, matchedTerm: term,
+                                      screenLines: screenLines) { [weak self] distracted in
+            if distracted { self?.showNudge() }
+        }
+    }
+
+    private func showNudge() {
+        guard let app = appState, nudgePanel == nil else { return }
         let mission = app.context.config?.mission ?? "your task"
         let panel = makeCardPanel(NudgeView(mission: mission), app: app, level: .floating)
         placeNearOrb(panel)
