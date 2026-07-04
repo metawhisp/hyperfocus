@@ -19,16 +19,17 @@ final class StatsServiceTests: XCTestCase {
         cal.date(from: DateComponents(year: y, month: m, day: d, hour: h))!
     }
 
-    func test_onlyCompletedSessionsCount() {
+    func test_onlyEarlyStopsAreExcluded() {
+        // Any timer-completed session counts (done/partial/notDone); only an early STOP does not.
         let now = day(2026, 3, 15)
         let history = [
-            session(day(2026, 3, 15), focus: 1500),
-            session(day(2026, 3, 15), focus: 900, status: .exited),   // ignored
-            session(day(2026, 3, 15), focus: 600, status: .notDone),  // ignored
+            session(day(2026, 3, 15), focus: 1500),                   // done
+            session(day(2026, 3, 15), focus: 600, status: .notDone),  // counts (they focused)
+            session(day(2026, 3, 15), focus: 900, status: .exited),   // excluded (early stop)
         ]
         let s = StatsService.compute(from: history, now: now, calendar: cal)
-        XCTAssertEqual(s.sessionCount, 1)
-        XCTAssertEqual(s.totalFocusSeconds, 1500)
+        XCTAssertEqual(s.sessionCount, 2)
+        XCTAssertEqual(s.totalFocusSeconds, 2100)
     }
 
     func test_currentStreak_countsConsecutiveDays() {

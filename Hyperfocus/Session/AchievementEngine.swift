@@ -13,7 +13,10 @@ enum AchievementEngine {
     static func unlockedIDs(history: [Session], now: Date = Date(),
                             calendar: Calendar = .current) -> Set<String> {
         var ids = Set<String>()
-        let done = history.filter { $0.completionStatus == .done }.sorted { $0.startedAt < $1.startedAt }
+        // A "focus session" = the timer ran to the end (done/partial/notDone). Only an early STOP
+        // (.exited) doesn't count. This keeps the completion card and the Statistics recompute in
+        // agreement regardless of the later mission answer (codex review).
+        let done = history.filter { $0.completionStatus != .exited }.sorted { $0.startedAt < $1.startedAt }
         guard !done.isEmpty else { return ids }
 
         func win(_ id: String, _ cond: Bool) { if cond { ids.insert(id) } }
@@ -43,8 +46,8 @@ enum AchievementEngine {
         win("sunrise_start", done.contains { hour($0) < 8 })
         win("burning_midnight", done.contains { hour($0) >= 0 && hour($0) < 5 })
         win("tailored", done.contains { ![5, 15, 25, 45].contains($0.plannedDurationSeconds / 60) })
-        win("continuation", done.contains { $0.mission.lowercased().hasPrefix("continue") })
-        win("wingman", done.contains { $0.mission.lowercased().hasPrefix("continue") })
+        // continuation/wingman need wand-provenance (a typed "continue…" isn't proof) — deferred
+        // with speed_demon/nudge_proof/sound_vision until Session gains those flags.
 
         // MARK: Milestones
         win("centurion", totalSec >= 100 * 3600)
@@ -134,7 +137,8 @@ enum AchievementEngine {
         win("redemption", redemptionHit(history: history, cal: calendar))
         win("round_two", repeatedMissionAfterFail(history: history))
         win("third_charm", sessionsPerDayMax(done, cal: calendar) >= 3)
-        win("rise_grind", true == false)   // needs same-user overnight pairing; left honest-off for now
+        win("quick_bounce", quickBounceHit(history: history))
+        win("rise_grind", riseGrindHit(done: done, cal: calendar))
 
         // MARK: Missions
         win("wordsmith", done.contains { words($0) >= 5 })
@@ -150,7 +154,7 @@ enum AchievementEngine {
         // MARK: Rhythm & fun
         win("morning_person", done.filter { hour($0) < 12 }.count >= 5)
         win("evening_person", done.filter { hour($0) >= 18 }.count >= 5)
-        win("cooldown", true == false)          // needs intra-day ordering by end; deferred
+        win("cooldown", cooldownHit(done: done, cal: calendar))
         win("round_number", count >= 100)
         win("overachiever", done.contains { $0.activeFocusSeconds > $0.plannedDurationSeconds && $0.plannedDurationSeconds > 0 })
         win("palindrome", done.contains { s in
@@ -163,7 +167,7 @@ enum AchievementEngine {
         win("balanced_diet", balancedWeek(done: done, cal: calendar))
         win("escalation", escalationHit(done: done, cal: calendar))
         win("warm_up_act", warmUpActHit(done: done, cal: calendar))
-        win("bookends", true == false)          // needs first/last-active-hour pairing; deferred
+        win("bookends", bookendsHit(done: done, cal: calendar))
 
         // Completionist: everything else unlocked.
         let others = Set(AchievementCatalog.all.map { $0.id }).subtracting(["completionist"])
@@ -302,6 +306,41 @@ enum AchievementEngine {
         return notDoneDays.contains { nd in
             guard let next = cal.date(byAdding: .day, value: 1, to: nd) else { return false }
             return doneDays.contains(cal.startOfDay(for: next))
+        }
+    }
+    /// A restart within 5 minutes of an early STOP.
+    private static func quickBounceHit(history: [Session]) -> Bool {
+        let sorted = history.sorted { $0.startedAt < $1.startedAt }
+        for i in 0..<sorted.count where sorted[i].completionStatus == .exited {
+            let exitEnd = sorted[i].endedAt ?? sorted[i].startedAt
+            if sorted[(i+1)...].contains(where: { $0.startedAt.timeIntervalSince(exitEnd) >= 0
+                && $0.startedAt.timeIntervalSince(exitEnd) <= 5 * 60 }) { return true }
+        }
+        return false
+    }
+    /// A morning (before noon) session the day after a post-midnight (00–05) one.
+    private static func riseGrindHit(done: [Session], cal: Calendar) -> Bool {
+        let lateDays = Set(done.filter { (0..<5).contains(cal.component(.hour, from: $0.startedAt)) }
+            .map { cal.startOfDay(for: $0.startedAt) })
+        return done.contains { s in
+            guard cal.component(.hour, from: s.startedAt) < 12 else { return false }
+            guard let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: s.startedAt)) else { return false }
+            return lateDays.contains(yesterday)
+        }
+    }
+    /// The last session of some day is under 10 minutes.
+    private static func cooldownHit(done: [Session], cal: Calendar) -> Bool {
+        Dictionary(grouping: done) { cal.startOfDay(for: $0.startedAt) }.values.contains { day in
+            guard let last = day.max(by: { $0.startedAt < $1.startedAt }) else { return false }
+            return last.activeFocusSeconds < 10 * 60
+        }
+    }
+    /// A day whose earliest and latest sessions are 8+ hours apart (bookending the day).
+    private static func bookendsHit(done: [Session], cal: Calendar) -> Bool {
+        Dictionary(grouping: done) { cal.startOfDay(for: $0.startedAt) }.values.contains { day in
+            guard let first = day.min(by: { $0.startedAt < $1.startedAt }),
+                  let last = day.max(by: { $0.startedAt < $1.startedAt }) else { return false }
+            return last.startedAt.timeIntervalSince(first.startedAt) >= 8 * 3600
         }
     }
     private static func repeatedMissionAfterFail(history: [Session]) -> Bool {

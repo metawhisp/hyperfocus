@@ -48,8 +48,8 @@ final class AchievementsStore {
         let unlockedIDs = AchievementEngine.unlockedIDs(history: fullHistory, now: now)
         let already = Set(state.unlocked.map { $0.id })
         var new: [Achievement] = []
-        for id in unlockedIDs.subtracting(already) {
-            guard let entry = AchievementCatalog.all.first(where: { $0.id == id }) else { continue }
+        // Iterate the catalog (not the Set) so the reward order is stable across runs (codex review).
+        for entry in AchievementCatalog.all where unlockedIDs.contains(entry.id) && !already.contains(entry.id) {
             let a = Achievement(id: entry.id, title: entry.title, detail: entry.detail,
                                 icon: entry.icon, unlockedAt: now)
             state.unlocked.append(a)

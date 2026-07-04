@@ -25,7 +25,9 @@ enum StatsService {
     static func compute(from history: [Session], now: Date = Date(),
                         calendar: Calendar = .current) -> FocusStats {
         var s = FocusStats()
-        let completed = history.filter { $0.completionStatus == .done }
+        // Any timer-completed session counts as focus (not just .done) — an early STOP (.exited)
+        // doesn't. This matches the achievement engine so the two never disagree (canon #41).
+        let completed = history.filter { $0.completionStatus != .exited }
         s.sessionCount = completed.count
         s.totalFocusSeconds = completed.reduce(0) { $0 + $1.activeFocusSeconds }
 
