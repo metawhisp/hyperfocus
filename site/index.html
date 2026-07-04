@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hyperfocus — Enter Hyperfocus Mode</title>
+<meta name="description" content="Hyperfocus is a cinematic focus timer for macOS, built for ADHD brains. One click, one task, enter Hyperfocus.">
+<meta name="theme-color" content="#0A0C10">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Hyperfocus — Enter Hyperfocus Mode">
+<meta property="og:description" content="A new era of the Pomodoro timer, built for ADHD brains. Get more done and finally learn to focus.">
+<meta property="og:url" content="https://hyperfocus.monster">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='9' fill='%2329EB8C'/><circle cx='16' cy='16' r='13.5' fill='none' stroke='%2329EB8C' stroke-opacity='.35' stroke-width='2'/></svg>">
+<style>
+  @font-face{
+    font-family:"Doto";
+    src:url("data:font/woff2;base64,d09GMgABAAAAAA6kABIAAAACBvgAAA45AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGhY/SFZBUi8GYD9TVEFUgTQnKACBei+BJBEICoKyYILLVTCFxnYBNgIkA4FUC4FSAAQgBYUmB4FyDAdbXhESRSknzXlU1CVBiSi+LOAN6VNuCGUzBGwhFjJhOSPcgPJUS9YAXey+ejeCyssXQ1dt1fl7BNV+nz37/hGH4EiFQAGTOlIBRQoIHWsECShkuHzqbOr9tV97Z4L6nqvvZ0gkWmM61XKAYHnfRRJgdykENPXhtoCHpuRg3KN8kObh36v3vnPGJlzN8W46gOU1n7qAhauxakXLa7hg4S6rjdaq/91KLtg7CJLEIt9/B4PNDzCTNJY0iNltSRhmH4ZhTA9UB8b5PNfkC9BY6P5CLIFHnsHr5xUeaXiga5omR+LGiQMbEMzX8PTOTBxMlYuioKVwnvO3h632RpsFkBZC/+k1UlH96PLVe6lL91FTC0o2lYJfPEC/TdK9C/Huzpv7O2DRA8KAY64xS8GvJdFEr5VBlKUIy8oxftlXgUpAEkInkgA9gCEAEKgUqEVGAIJCWpsdUEQ6ll7ixF9/Kr4bHam0PFWUl6WUlaaSPWQAMKrDBt8aS0x5nDeyAzEMCIju9BKNQAilEnpgoxV5+ZJ0kIQdO8WkEHpAlKyCirqW3nwIpKgAIYikrYbLvHMWtt4/E5IUZ0gvW0SKo5tzJWltY2lLtixrFKvLA8NDUnjrLRg6CLy8IKvX15n4rsnQA0WgB6q/qHeKIpmq7t1X4yW6Q09I/J8DjXwavhov0C16/M/fzd+SX+T7hO9e3xmhHlgKXACwkUFWkFLco5KomBcpcg4JDRNhHW1mJnU1agEyVV56NhmIGJ/Ekx6rBzxSCipGFnZOLm4ePn4hEWllFS1dfQNDI2NCAiLPdLQdKjPpgaVSrAS0A22AEHEODEF24BMPEZFaHnRkgHdEAYhhIIqAOEMUA9FNlABpLYhSIL0kyoCsEUQ5IMpvHXlOAl0A3yjcZPFn2QEAtQBJrQu/KVCpRBIFhyPiKBQyiUol4UgEKgFLIhIRKAKVjEJhsTgcDgsnk4gUGAKBReKpRCoURURg8AQsiogn0cQT1jhbCQHBkDFINBoOh2HwGBwJBVSSSPjCuMyDFgJ+wpW3O0xnBLpAYPhcZNRAsGcgh9EDkXXgQJbVVjfRTO/erjMYv3vXdvlw/8ZjVt/iW8lqXBbzlJL8O0VcAky3rZ/e8+ZXGkC5c7Uy7250/Wa5Oqtj5j8AGNzjzik0Mh24JkDS5HLkBBFeJfiZ8TQJF+QZvvGc2uHQbS7zd8r40t9b/2Gq2/Dcr3g6lIDtMMNz3nLhTKq/Xf4+G85EAk7WoZoDHExgPJGw/YyrJh5Ukx4JdpCxY5nQTQFoK7inCYPq+yPpOnh//cgSxf2Wbf4Gk3e4x3Nf5PmA6PG9q3oGREBXTo7qrvgk3Ln7VvW2+GPmgegnLGLSm4O3nhSPMKXhTAIluurm6I2yzZ85vYNvnC7P47UzosRndLmMyHSOG6834P+nZdVXj88q5f3gOWcaFb839aGq+R6/0B7IKKWSt8KmqSilX0q2vSO/vD/eZs6BE77dgDIyA8IPrjd3Twhm9T1Ff8jgvbxw/B2rAJFHfnzlX5CCqpRhN/9YBq8AJ2JbL/+NT0IS74/J8rrcGyjIHwE9L+Um717+RUphEb4PCPfmrMGHmbt7eOMS/xMFANJEeH9vzdMZ8l9yDWgE4IjYIJB/eAt3j5/mr0KWYHOY/fRYHu6SDIkKAjjGMDPNeGswiz7gv9QIl2ccVVZOjedLv906xeM08SPBeauMmf8iIP+pTiny25DUXRIQnzkisU3+wMthw4QN2W6OUY5wdhsEZPPpk72w/q21+u2tYXO5+G/vxPr/7uFrI+6u35431xyrW0Pl9nkxfa3yE8rL2falvsNy1s1Swzf0dxL+/HVID/TmrtB+jnliSqX3MEq82okPLFNtzTfkpabdK5T6zbvAxzx7IMuNwSHjnfbuumnruktb93XFD8tdSV6atLrGoEq2rsDRrGNUsJGeroLj7FQcwO3Q446GmpGE/3Tl7+QZy3hI4lLzNLOfIDni9bUfmDrM4pYqIpqXzY4PoI2dDXMfJQIDleZFu8B5YAeWpK1lqc26vomOJxmSO1RehfEgvBSLAOoVnuf3Ll915XLwFATxAKqkYleeBfuocesMYEAUErDrFKPnhyMOgQWQLdqtzstqHmGEhlbWgwAsegAXZHcyRo+sQSn+7FSY69vl/3U2XPtobndjqfZ8yPfVlocetVyutfgN4ocP7LfXf91jOoVkt7fPBzLmSuHy9tsLnE2QbYaiK3h87Q919tCycf3DTd0WMxwi0RH4yks0S5a3z3B+Zr98k/Rv3hrm0VkT4xWYf/sPRpzZ6q+OuO4AjpXXW7tr9+MPGqt3xfFNUtMfAVDk3TzFBDzniHCMEmna2E1rxmiXYDo1YNHtwEROIkWVBk1S81L+04D+PpQDAQIgGJ4ptsM3FJjT2K5uH7emZBadupe4auOTNJfzuPPwUCxI9QCEZZI4AKZ4SIxt24X62EeY8ymhtyPPHqz9lA2Ps8Q9iggDA6Sqk5zzbz4+NQ4MSBq4qHDWWzEi7nE1CXj5040dGikHpMQARCbh07TL+UWQQOFIGeOTOW7xkz3SMitGUUseIOicgxj5kzvijAVe5XQ4bvngDWPg4D1EPqGkQzIW8GEtNyeHAl8IGkM+gf9b7QVgMF56dWRozCNNNqBSAvzpylcpPDk1rY7udmiBJmnSeKw/Ri10HxtSdU/ml+aUKVyk2D3mh7NgrA2jHeqJT7NKOls12yVnk1zzyeKTER1XTnlet53Mq2/wtLg23YjX9LvbI/HchDvsG2/3JuzfqQeQYMBfKAP4B+mccKFMmFP8F0fJRzQiND9cT9NdrR9veN0k22yPxTfxQrsoh2FOji4lbimeiNdHS0OPNb0O9rnmM9d3nf+8oPDZ90J3hp2KiFzwKbphSZ+4fQm+CQ+T/dbsXnc6SytrUnb65sbchXljC9Las1Ld8sMVBpWO1f5bSmuLto9sNGla0Lyx9Vj7xM7T/Q4MGD2oc8itoa+H/RlpHvl3lHb0mLGvx4dO8JhYPmn+ZP/Jj6fkTd0zffiMx7NGzjk898rcK/PnL7y5RGPpvWVLVyDvmdW2a4evb90YAPAW/ICpDsAAbJFjMkQMNwXkBhJ020F/MHY6XH02+He1qkGGMwirj9Xebs0dBgzoj2DvNaJ/3foaP+CRCBNezZh/zIxL80b+0m+w/9FTBuO7cVWDDAcPwupjtbdDam6GQhju4ZJbL0X+VV3a6rDuGYVTOjDplCtQXx1Y86+Ak1bSN3CNMPjs1EHJwmovUlYa7l8d6eY5me5c/sEiDnIcxa7qn4v8q4mkra26JxTOSFaWM2ZduWLqLf/waJZBK/KRsnSpFzDZq9TVRrSiropOvHpFI9QCXiJcoAM1a690xb7qZdpag/ass+nOt22aU1XcmAg8WINF6291a7T3uxkwYoTnBBUuc0LDZE8pvKmW7xYBEdoQN9oqw1BVL5GWGg7QFjyf6QTpo9RkOqBIHkekQTfWjMHHzBhANDzy182FRLPOTAAgZ9Nc8JJpMHXLXDDiHTwAwJyjzOw6BX+DbwP4X2D9t1eIi41Qx4aWKXMtOlQsFUSS5GeM4Xi4CAYEXS3skRyPi/WnE7G1eRUb6RVCiQTELykSbMKaxfs5VbE/QvduIRGJ6RnJJ1eMl4dOKQDgO1DtjtmdlBsb0G454a60LfIaBjw4I4FFOaDIy9cJSoOiAXSKSu50EncsU5MXmQj1rWPa2liBWCukqb0wWyDH592ZMd+6HMQEUQfDYklo+RS6Oj7IJHGLWZMOY8SkctnXipQLT15EFmZiyravisi0qIyeqKvLTH8UZZKerLg0jPcA4QLrpf1SHsH1Gnm5Edma50B2JKniTEGrPfZNECRPi9lDvyQj8Ao8Wxg/Syh6F1nCXUbO3TYTKYpnXfNnMiF5v0KTSH08wb2l30WjfHuBsNBQjCuawVQ7URiiZ8rWNv2GaeWe05nk8VBGTTs3F+Ypwne88uGvKGvVJZucWfeCYr5NIp95u5ivmLIBFSLNk289P2YmrzteAIBvGjcXqC1NyveDIQyXBoyLuZ0BVUtv8TK1MVlmF1Y2CWUVGh44EePk8qvkjPrB6eBICx9z7upE5XOqfr6Jf7+yK4Jf0IzEFeSvGFCaM1kU39BnMc5axjkmhQZ/55a5kB6n3EnbRvwMYdaCl0qoPogmZVVSDoFMqAaeckyK3ZE9z82zP3Opx1sKCJ923mN5V5tb0/srU7AXAPyczTyAX+a7ZkLR/4jDFiiGAgTI7v43kDZAcI/3yxayaIovxrQp8a7bcgRzFsqdxOcyrax/m5/KLVH8X/qsuZXz7HvRPmoDN0GArkgCTYDwMKiHbzLIxAC4BWqA0LQEKNEOYOwda8RbgqDvA0iawUoUbBjnIQD1YcuAAB89gQIdIcBAM2KAAxsFIEC0AyTwUQUK5GgDDXSMAANqTGhk92QZHIixCGaoVaedpr2ZiSkM0dPSM1I9+ZBiC2J0PEEb2AaStbcxNzKAIT4EbGpj7wCRmsKwrQM7DY2JGWyK0Kc2sLGisbE082pkb6lnqWdNs71G2Zad/jbtBhbyRiaI2uw9HTXtu9PxORlm4FhaWUWUDXvJP7Oxhp7LLVO81WE2CGtDayMHBxWjM2c8R4ozayFvib2eZIvCv5unjAzNEFYKt8TK6T8L3uFf1vVY67ODRsZ6R3x9jAzkN4yR5efdBbQSEZOQkpFTUFJR09DS0TMwMjGzsLKxc3ByCWKZpudIixCPjrYuN6+wJyfmYJjrwacH7mtENc+tG3EBPAmnklLSMl5k5TyiW+5SAUelUnX+VFuJj+ahRx57otwqZc/u3Tkvplrj2pUqv5q6hqaWixf5wTudBA==") format("woff2");
+    font-weight:100 900; font-display:swap;
+  }
+  :root{
+    --void:#0A0C10;
+    --green:#29EB8C;
+    --lime1:#B8F236; --lime2:#8CD90F;
+    --w95:rgba(255,255,255,.95); --w60:rgba(255,255,255,.60); --w40:rgba(255,255,255,.40);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    min-height:100dvh; overflow:hidden;
+    background:radial-gradient(130% 120% at 50% 40%, #12151b 0%, #0b0d12 50%, var(--void) 100%);
+    font-family:-apple-system,ui-sans-serif,system-ui,sans-serif;
+    color:var(--w95);
+  }
+  /* orb lives on a full-viewport canvas BEHIND everything and roams anywhere */
+  #orb{position:fixed; inset:0; width:100vw; height:100dvh; z-index:1; pointer-events:none}
+  /* green screen-edge aura (the app's Edge Aura) → red when away */
+  #aura{position:fixed; inset:0; z-index:2; pointer-events:none;
+    box-shadow:inset 0 0 90px rgba(41,235,140,.13), inset 0 0 3px rgba(41,235,140,.45);
+    transition:box-shadow .5s ease;}
+  #aura.away{box-shadow:inset 0 0 120px rgba(255,77,71,.20), inset 0 0 4px rgba(255,77,71,.6)}
+  /* click-to-toggle NOISE mode: TV static + scattered distraction text */
+  #noise{position:fixed; inset:0; z-index:2; width:100vw; height:100dvh; pointer-events:none; opacity:0; mix-blend-mode:screen}
+  #noiseText{position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0; transition:opacity .35s ease}
+  #noiseText.on{opacity:1}
+  #noiseText .nz{position:absolute; font-size:12px; letter-spacing:.3px; color:rgba(255,255,255,.34);
+    white-space:nowrap; transform:translate(-50%,-50%); text-shadow:0 0 8px rgba(0,0,0,.7)}
+  @keyframes nzflick{0%,100%{opacity:.55}50%{opacity:.16}}
+  @media(prefers-reduced-motion:reduce){ #noiseText .nz{animation:none!important} }
+
+  .wrap{position:relative; z-index:3; min-height:100dvh; display:flex; flex-direction:column}
+  nav{display:flex; align-items:center; gap:11px; padding:26px 32px}
+  nav .logo{width:30px; height:30px; display:block}
+  nav .brand{font-family:"Doto"; font-weight:800; font-size:15px; letter-spacing:3px; color:var(--w95)}
+  nav .sp{flex:1}
+  nav .status{display:flex; align-items:center; gap:8px; font-family:"Doto"; font-weight:700;
+    font-size:11px; letter-spacing:2px; color:var(--w40); text-transform:uppercase; transition:color .4s}
+  nav .status .dot{width:6px; height:6px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 8px var(--green); transition:background .4s, box-shadow .4s}
+  nav .status.away{color:rgba(255,77,71,.85)}
+  nav .status.away .dot{background:#FF4D47; box-shadow:0 0 8px #FF4D47}
+
+  main{flex:1; display:flex; align-items:center; justify-content:center; padding:0 24px 6vh}
+  #content{width:100%; max-width:600px; display:flex; flex-direction:column; align-items:center;
+    text-align:center; gap:20px}
+  h1{font-family:"Doto"; font-weight:900; text-transform:uppercase; letter-spacing:1.5px;
+    line-height:1.0; color:var(--w95); font-size:clamp(34px,7vw,68px)}
+  .sub{color:var(--w60); font-size:clamp(14px,1.7vw,17px); line-height:1.55; max-width:42ch; text-wrap:balance}
+  .cta{display:inline-flex; align-items:center; gap:9px; text-decoration:none;
+    font-size:15px; font-weight:700; color:#0a1400; letter-spacing:.2px;
+    padding:13px 26px; border-radius:100px;
+    background:linear-gradient(90deg,var(--lime1),var(--lime2));
+    box-shadow:0 0 20px rgba(184,242,54,.42), 0 0 50px rgba(184,242,54,.16);
+    transition:transform .15s ease, box-shadow .2s ease;}
+  .cta:hover{box-shadow:0 0 26px rgba(184,242,54,.6), 0 0 64px rgba(184,242,54,.22)}
+  .cta:active{transform:scale(.98)}
+  .cta:focus-visible{outline:none; box-shadow:0 0 0 3px var(--void), 0 0 0 5px var(--lime1)}
+  .facts{display:flex; flex-wrap:wrap; justify-content:center; gap:9px 20px; margin-top:2px}
+  .facts span{font-size:11px; letter-spacing:1.6px; color:var(--w40); text-transform:uppercase;
+    display:flex; align-items:center; gap:7px}
+  .facts span::before{content:""; width:4px; height:4px; border-radius:50%; background:var(--green); opacity:.8}
+  /* honest away line — only visible when you leave */
+  #awayline{position:fixed; left:50%; bottom:32px; transform:translateX(-50%); z-index:3;
+    font-size:13px; color:rgba(255,77,71,.85); letter-spacing:.3px; opacity:0; transition:opacity .4s;
+    pointer-events:none}
+  #awayline.show{opacity:1}
+
+  @media(max-width:640px){
+    nav{padding:20px} main{padding:0 20px 10vh}
+    h1{font-size:clamp(30px,10vw,44px)}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .cta,.cta:active{transition:none; transform:none}
+  }
+</style>
+</head>
+<body>
+  <canvas id="orb" aria-hidden="true"></canvas>
+  <canvas id="noise" aria-hidden="true"></canvas>
+  <div id="noiseText" aria-hidden="true"></div>
+  <div id="aura"></div>
+
+  <div class="wrap">
+    <nav>
+      <canvas class="logo" id="logo" aria-hidden="true"></canvas>
+      <span class="brand">HYPERFOCUS</span>
+      <span class="sp"></span>
+      <span class="status" id="status"><span class="dot"></span><span id="statusText">Present</span></span>
+    </nav>
+
+    <main>
+      <div id="content">
+        <h1>Enter<br>Hyperfocus<br>Mode</h1>
+        <p class="sub">A new era of the Pomodoro timer, built for ADHD brains — get more done and finally learn to focus.</p>
+        <a class="cta" href="__DMG_URL__">Download for macOS</a>
+        <div class="facts"><span>No account</span><span>Local-only</span><span>macOS 15+</span></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="awayline">Session paused — return to Hyperfocus.</div>
+
+<script>
+(function(){
+  "use strict";
+  const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const GREEN = [41,235,140], AWAY = [255,77,71];
+
+  // ---- orb geometry (the app's RingToParticlesOrb, 240-dot Fibonacci sphere) ----
+  const N=240, GOLD=Math.PI*(3-Math.sqrt(5));
+  const PTS=[];
+  for(let i=0;i<N;i++){const y=1-(i/(N-1))*2;const r=Math.sqrt(1-y*y);const a=GOLD*i;PTS.push([Math.cos(a)*r,y,Math.sin(a)*r]);}
+  PTS.sort((a,b)=>Math.atan2(a[1],a[0])-Math.atan2(b[1],b[0]));
+
+  const cv=document.getElementById("orb"), ctx=cv.getContext("2d");
+  const content=document.getElementById("content");
+  const h1El=content.querySelector("h1");
+  const auraEl=document.getElementById("aura");
+  const statusEl=document.getElementById("status"), statusText=document.getElementById("statusText");
+  const awayEl=document.getElementById("awayline");
+
+  let W=0,H=0,dpr=1,D=180;
+  function resize(){
+    dpr=Math.min(2,window.devicePixelRatio||1);
+    W=window.innerWidth; H=window.innerHeight;
+    cv.width=W*dpr; cv.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+    D=Math.max(120, Math.min(180, Math.min(W,H)*0.20));  // smaller, responsive
+    if(!inited || (px<1 && py<1)){ px=W*0.74; py=H*0.38; smx=px; smy=py; inited=true; }  // seed upper-right (re-seed if a 0-size load left it at origin)
+    resizeNoise(); makeNoiseTile();
+  }
+  window.addEventListener("resize", resize);
+
+  // ---- pointer + state ----
+  let mx=W*0.5, my=H*0.5, hasPointer=false;
+  let px=W*0.72, py=H*0.42;      // orb position
+  let smx=px, smy=py;            // delayed/smoothed target
+  let gazeX=0, gazeY=0;
+  let away=false, awayGuardReady=false, inited=false;
+
+  function onMove(x,y){
+    mx=x; my=y; hasPointer=true;
+    const cx=W/2, cy=H/2;
+    gazeX=Math.max(-1,Math.min(1,(x-cx)/(W/2)));
+    gazeY=Math.max(-1,Math.min(1,(y-cy)/(H/2)));
+    document.body.style.cursor = Math.hypot(x-px,y-py) < D*0.62*1.6 ? "pointer" : "";  // hint: orb is clickable
+    if(away) setAway(false);
+  }
+  window.addEventListener("pointermove", e=>onMove(e.clientX,e.clientY), {passive:true});
+  window.addEventListener("touchmove", e=>{ if(e.touches[0]) onMove(e.touches[0].clientX,e.touches[0].clientY); }, {passive:true});
+  window.addEventListener("touchstart", e=>{ if(e.touches[0]) onMove(e.touches[0].clientX,e.touches[0].clientY); }, {passive:true});
+
+  function setAway(v){
+    if(mode==="noise") return;   // noise mode owns the orb; away can't override it
+    if(v===away) return; away=v;
+    auraEl.classList.toggle("away",v);
+    statusEl.classList.toggle("away",v);
+    awayEl.classList.toggle("show",v);
+    statusText.textContent = v ? "Away" : "Present";
+    if(!v){ statusText.textContent="Focus restored"; setTimeout(()=>{ if(!away) statusText.textContent="Present"; },1200); }
+  }
+  // robust "cursor left the screen" detection (mirrors the app's presence detection)
+  document.addEventListener("mouseout", e=>{
+    const out = !e.relatedTarget || e.clientX<=0 || e.clientY<=0 || e.clientX>=window.innerWidth || e.clientY>=window.innerHeight;
+    if(out && awayGuardReady) setAway(true);
+  });
+  window.addEventListener("blur", ()=>{ if(awayGuardReady) setAway(true); });
+  document.addEventListener("visibilitychange", ()=>{ if(document.hidden && awayGuardReady) setAway(true); else if(!document.hidden && away) setAway(false); });
+  window.addEventListener("focus", ()=>{ if(!document.hidden && away) setAway(false); });
+  setTimeout(()=>{ awayGuardReady=true; }, 400);   // don't start angry on load
+
+  // ---- keep-out: orb orbits AROUND the text, never covers it ----
+  // Radially project the target to the inflated content box boundary when it falls inside,
+  // so the orb rides the cursor-side edge of the text instead of sitting on top of it.
+  function avoid(x,y){
+    const r=content.getBoundingClientRect();
+    const cushion = D*0.62 + 22;
+    const ccx=r.left+r.width/2, ccy=r.top+r.height/2;
+    const hw=r.width/2+cushion, hh=r.height/2+cushion;
+    let dx=x-ccx, dy=y-ccy;
+    const n=Math.max(Math.abs(dx)/hw, Math.abs(dy)/hh);
+    if(n>=1) return [x,y];                 // outside the protected box → roam free
+    if(n<1e-3){ dx=0; dy=-1; }             // dead-centre → park just above the text
+    const s=1/Math.max(n,1e-3);
+    return [ccx+dx*s, ccy+dy*s];
+  }
+
+  // ---- blink ----
+  let blink=0, nextBlink=1.4+Math.random()*3, blinkT=0, blinking=false;
+
+  // ---- colour morph + agitation ----
+  let col=[...GREEN];
+  let agitEased=0;
+
+  // ---- render one orb ----
+  function drawOrb(g, cx, cy, diameter, rgb, bright, t, withEyes, agit){
+    const R=diameter/2*0.62;
+    const c=(a)=>`rgba(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0},${a})`;
+    // halo
+    const gR=R*2.3, hA=Math.min(1,(0.10+0.38)*bright);
+    let gr=g.createRadialGradient(cx,cy,R*0.35,cx,cy,gR);
+    gr.addColorStop(0,c(hA)); gr.addColorStop(.40,c(hA*.45)); gr.addColorStop(.65,c(hA*.18)); gr.addColorStop(.85,c(hA*.05)); gr.addColorStop(1,c(0));
+    g.fillStyle=gr; g.beginPath(); g.arc(cx,cy,gR,0,7); g.fill();
+    // inner bloom
+    const bR=R*1.25; let br=g.createRadialGradient(cx,cy,0,cx,cy,bR);
+    br.addColorStop(0,c(Math.min(1,.55*bright))); br.addColorStop(.5,c(Math.min(1,.18*bright))); br.addColorStop(1,c(0));
+    g.fillStyle=br; g.beginPath(); g.arc(cx,cy,bR,0,7); g.fill();
+    // dots
+    const rotY=t*0.55, rotX=t*0.21, cyy=Math.cos(rotY), syy=Math.sin(rotY), cxx=Math.cos(rotX), sxx=Math.sin(rotX);
+    const greenness = rgb[1]/(rgb[0]+rgb[1]+rgb[2]+1e-6);
+    const whitenMax = 0.10 + 0.35*greenness;   // hue-preserving so the away sphere stays red
+    for(const p of PTS){
+      const x1=p[0]*cyy+p[2]*syy, z1=-p[0]*syy+p[2]*cyy;
+      const y1=p[1]*cxx-z1*sxx, z2=p[1]*sxx+z1*cxx;
+      const depth=(z2+1)/2;
+      const sx=x1*R*1.05, sy=y1*R*1.05;
+      const dotR=(0.30+0.50*depth)*(R/14);
+      const wn=depth*whitenMax;
+      const rr=rgb[0]+(255-rgb[0])*wn, gg=rgb[1]+(255-rgb[1])*wn, bb=rgb[2]+(255-rgb[2])*wn;
+      const a=Math.min(1,0.35+0.75*depth);
+      g.fillStyle=`rgba(${rr|0},${gg|0},${bb|0},${a})`;
+      g.beginPath(); g.arc(cx+sx, cy+sy, dotR, 0, 7); g.fill();
+    }
+    // eyes — thin white capsule slits that gaze at the cursor; brows drop when away
+    if(withEyes){
+      const ew=diameter*0.05, ehBase=diameter*0.15;
+      const eh=ehBase*(1-blink*0.9);
+      const gap=diameter*0.085;
+      const gxo=gazeX*diameter*0.05, gyo=gazeY*diameter*0.045;
+      const ey=cy+gyo;
+      g.fillStyle="rgba(255,255,255,.95)";
+      for(const sgn of [-1,1]){
+        const ex=cx+gxo+sgn*(gap/2);
+        rr_(g, ex-ew/2, ey-eh/2, ew, eh, ew/2);
+      }
+      if(agit>0.02){
+        const bw=diameter*0.12, bh=diameter*0.04, tilt=(12+6*agit)*Math.PI/180;
+        g.fillStyle=`rgba(255,255,255,${0.85*Math.min(1,agit*1.4)})`;
+        for(const sgn of [-1,1]){
+          g.save();
+          g.translate(cx+gxo+sgn*(gap/2), ey-eh*0.75);
+          g.rotate(sgn*tilt);
+          rr_(g,-bw/2,-bh/2,bw,bh,bh/2);
+          g.restore();
+        }
+      }
+    }
+  }
+  function rr_(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.fill(); }
+
+  // ---- nav logo (small static orb) ----
+  const logo=document.getElementById("logo"), lctx=logo.getContext("2d");
+  function drawLogo(){
+    const d=26, box=d*2.6, dp=Math.min(2,window.devicePixelRatio||1);
+    logo.width=box*dp; logo.height=box*dp; logo.style.width=box+"px"; logo.style.height=box+"px";
+    logo.style.marginLeft=(-(box-30)/2)+"px"; logo.style.marginRight=(-(box-30)/2)+"px";
+    lctx.setTransform(dp,0,0,dp,0,0); lctx.clearRect(0,0,box,box);
+    drawOrb(lctx, box/2, box/2, d, GREEN, 2.4, 0.7, false, 0);
+  }
+
+  // ---- click-to-toggle NOISE / HYPERFOCUS mode ----
+  let mode="focus";          // "focus" (green, moving) | "noise" (red, frozen, chaos)
+  let noiseT=0, orbT=0, flash=0;
+
+  const nz=document.getElementById("noise"), nctx=nz.getContext("2d");
+  const nzTile=document.createElement("canvas"); nzTile.width=170; nzTile.height=110;
+  const nzTctx=nzTile.getContext("2d");
+  let nzFrame=0;
+  function makeNoiseTile(){
+    const img=nzTctx.createImageData(nzTile.width,nzTile.height), d=img.data;
+    for(let i=0;i<d.length;i+=4){ const v=Math.random()*255|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+    nzTctx.putImageData(img,0,0);
+  }
+  function resizeNoise(){ nz.width=W*dpr; nz.height=H*dpr; nctx.setTransform(dpr,0,0,dpr,0,0); nctx.imageSmoothingEnabled=false; }
+
+  const ntEl=document.getElementById("noiseText");
+  const PHRASES=["reply to Dana","unread: 47","did I lock the door?","just one more video","check the news",
+    "taxes due friday","refill the coffee","that email…","open a new tab","5 more minutes","what was I doing?",
+    "answer Slack","the laundry","wikipedia rabbit hole","doomscroll a bit","text mom back","is it lunch yet?",
+    "new notification","quick dopamine","that awkward thing","water the plants","charge my phone","should I nap?",
+    "checked Twitter?","46 tabs open","where's my phone?","one quick game","update the resume"];
+  function buildNoise(){
+    ntEl.innerHTML="";
+    PHRASES.forEach((p,i)=>{
+      const s=document.createElement("span"); s.className="nz"; s.textContent=p;
+      const left=(i%2===0);
+      const x = left ? (3+Math.random()*22) : (75+Math.random()*22);
+      const y = 7+Math.random()*86;
+      s.style.left=x+"%"; s.style.top=y+"%";
+      s.style.fontSize=(11+Math.random()*4).toFixed(1)+"px";
+      s.style.transform=`translate(-50%,-50%) rotate(${(Math.random()*8-4).toFixed(1)}deg)`;
+      if(!reduce) s.style.animation=`nzflick ${(2+Math.random()*3).toFixed(2)}s ${(Math.random()*2).toFixed(2)}s infinite`;
+      ntEl.appendChild(s);
+    });
+  }
+  function applyMode(){
+    const noise = mode==="noise";
+    ntEl.classList.toggle("on", noise);
+    if(noise){
+      away=false; auraEl.classList.remove("away"); awayEl.classList.remove("show");
+      statusEl.classList.add("away"); statusText.textContent="Distracted";
+    } else {
+      statusEl.classList.remove("away"); statusText.textContent="Present";
+    }
+  }
+  function toggleMode(){ if(mode==="focus"){ mode="noise"; } else { mode="focus"; flash=0.55; } applyMode(); }
+  // click ON the orb toggles the mode (orb canvas is pointer-events:none, so hit-test by distance)
+  window.addEventListener("pointerdown", (e)=>{
+    if(Math.hypot(e.clientX-px, e.clientY-py) < D*0.62*1.5){ toggleMode(); }
+  });
+
+  // ---- main loop ----
+  buildNoise(); applyMode();
+  resize(); drawLogo();
+  let last=performance.now()/1000, tt=0;
+  function frame(now){
+    now/=1000; let dt=now-last; last=now; if(dt>0.1) dt=0.1; tt+=dt;
+
+    // ---- mode transitions: noise ramps in/out, spin freezes in noise, flash on entering focus ----
+    const noise = mode==="noise";
+    noiseT += ((noise?1:0)-noiseT)*(reduce?1:(1-Math.exp(-dt/0.3)));
+    orbT   += dt*(1 - noiseT*0.97);     // sphere spin slows to a halt as noise takes over
+    flash   = Math.max(0, flash-dt);
+
+    // colour: RED when distracted (noise) or away; GREEN in focus. Gradual reddening on leave.
+    const red = noise || away;
+    const colTau = noise ? 0.28 : (away ? 0.85 : 0.4);
+    const kc = reduce ? 1 : (1-Math.exp(-dt/colTau));
+    const tgt = red ? AWAY : GREEN;
+    col[0]+=(tgt[0]-col[0])*kc; col[1]+=(tgt[1]-col[1])*kc; col[2]+=(tgt[2]-col[2])*kc;
+    agitEased += ((away?1:0)-agitEased)*kc;   // angry brows are for AWAY only, not noise
+
+    // Movement. NOISE: frozen in place (silent). AWAY: slow-drift home above ENTER. FOCUS: lazy follow + orbit text.
+    if(noise){
+      gazeX*=Math.pow(0.02,dt); gazeY*=Math.pow(0.02,dt);   // eyes settle, face forward
+    } else if(reduce){
+      const h=h1El.getBoundingClientRect();
+      px = away ? W*0.5 : W*0.74;
+      py = away ? (h.top - D*0.42) : H*0.38;
+    } else if(away){
+      const h=h1El.getBoundingClientRect();
+      const homeX=W*0.5, homeY=h.top - (D/2*0.62) - 12;   // hover just above ENTER
+      const rk=1-Math.exp(-dt/0.9);                        // slow return
+      px+=(homeX-px)*rk; py+=(homeY-py)*rk;
+      smx=px; smy=py;                                      // resume from here on return, no snap-back
+      gazeX*=Math.pow(0.02,dt); gazeY*=Math.pow(0.02,dt);
+    } else {
+      const rawX = hasPointer?mx:W*0.76, rawY = hasPointer?my:H*0.36;
+      const tk = 1-Math.exp(-dt/0.30);      // delayed target
+      smx+=(rawX-smx)*tk; smy+=(rawY-smy)*tk;
+      const [ax,ay]=avoid(smx,smy);         // orbit around the text
+      const sk = 1-Math.exp(-dt/0.42);      // slow trailing follow
+      px+=(ax-px)*sk; py+=(ay-py)*sk;
+    }
+    // idle bob (frozen in noise) + tiny away shake
+    const bob = (reduce||noise)?0:Math.sin(tt*1.05)*(D*0.02);
+    let shx=0, shy=0;
+    if(agitEased>0.02 && !reduce){
+      const amp=agitEased*D*0.012;
+      shx=(Math.sin(tt*37)+Math.sin(tt*51)*0.6)*amp;
+      shy=(Math.cos(tt*43)+Math.sin(tt*59)*0.6)*amp*0.7;
+    }
+    const scale = 1 + agitEased*0.08;   // away growth capped tiny (≤1.08x)
+
+    // blink (stops in noise — the orb goes still and quiet)
+    if(!reduce && !noise){
+      if(!blinking){ nextBlink-=dt; if(nextBlink<=0){ blinking=true; blinkT=0; } blink=0; }
+      else{ blinkT+=dt; const dur=0.16; blink=Math.sin(Math.min(1,blinkT/dur)*Math.PI); if(blinkT>=dur){ blinking=false; nextBlink=1.4+Math.random()*3.2; } }
+    } else blink=0;
+
+    // TV-static grain, driven by how much noise is showing
+    if(noiseT>0.01){
+      if(!reduce && (nzFrame++ %2===0)) makeNoiseTile();
+      nz.style.opacity=(noiseT*0.11).toFixed(3);
+      nctx.clearRect(0,0,W,H); nctx.drawImage(nzTile,0,0,W,H);
+    } else if(nz.style.opacity!=="0"){ nctx.clearRect(0,0,W,H); nz.style.opacity="0"; }
+
+    ctx.clearRect(0,0,W,H);
+    const bright = 2.6 + (reduce?0:Math.sin(tt*1.6)*0.05) + (flash>0?(flash/0.55)*2.6:0);  // bright flash when focus returns
+    drawOrb(ctx, px+shx, py+bob+shy, D*scale, col, bright, reduce?0.5:orbT, true, agitEased);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
