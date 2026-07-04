@@ -41,64 +41,20 @@ final class AchievementsStore {
         save()
     }
 
-    /// Called when a session's TIMER completes (before the mission answer). Returns new unlocks.
-    /// `context` carries the just-finished session's counters; `history` is all saved sessions
-    /// (completed ones have completionStatus != .exited).
-    func evaluateCompletion(planned: Int, activeFocus: Int, breaks: Int,
-                            startedAt: Date, history: [Session]) -> [Achievement] {
-        let completedHistory = history.filter { $0.completionStatus != .exited }
-        let now = Date()
-        let calendar = Calendar.current
+    /// Re-evaluate the full 100-entry catalog against the given history (which must INCLUDE the
+    /// just-completed session). Idempotent — awards any newly-satisfied achievements (retroactive)
+    /// and returns only the fresh unlocks for the completion card.
+    func evaluate(fullHistory: [Session], now: Date = Date()) -> [Achievement] {
+        let unlockedIDs = AchievementEngine.unlockedIDs(history: fullHistory, now: now)
+        let already = Set(state.unlocked.map { $0.id })
         var new: [Achievement] = []
-
-        func unlock(_ id: String, _ title: String, _ detail: String, _ icon: String) {
-            guard !state.unlocked.contains(where: { $0.id == id }) else { return }
-            let a = Achievement(id: id, title: title, detail: detail, icon: icon, unlockedAt: now)
+        for id in unlockedIDs.subtracting(already) {
+            guard let entry = AchievementCatalog.all.first(where: { $0.id == id }) else { continue }
+            let a = Achievement(id: entry.id, title: entry.title, detail: entry.detail,
+                                icon: entry.icon, unlockedAt: now)
             state.unlocked.append(a)
             new.append(a)
         }
-
-        // Firsts
-        if completedHistory.isEmpty { unlock("first_session", "IGNITION", "first hyperfocus", "star") }
-        if planned >= 15 * 60 { unlock("first_15m", "FIRST 15M", "quarter-hour deep", "bolt") }
-        if planned >= 25 * 60 { unlock("first_25m", "FIRST 25M", "full pomodoro", "bolt") }
-        if planned >= 45 * 60 { unlock("first_45m", "FIRST 45M", "deep dive", "bolt") }
-
-        // Quality
-        if breaks == 0 { unlock("laser_mind", "LASER MIND", "zero drifts", "bolt") }
-        if breaks >= 1 { unlock("comeback", "COMEBACK", "drifted but finished", "target") }
-
-        // Volume (total focus including this session)
-        let totalSeconds = completedHistory.reduce(activeFocus) { $0 + $1.activeFocusSeconds }
-        if totalSeconds >= 3600 { unlock("hour_1", "HOUR ONE", "1h total focus", "flame") }
-        if totalSeconds >= 5 * 3600 { unlock("hour_5", "FIVE HOURS", "5h total focus", "flame") }
-        if totalSeconds >= 10 * 3600 { unlock("hour_10", "TEN HOURS", "10h total focus", "flame") }
-
-        // Rhythm — completed sessions today (incl. this one)
-        let today = completedHistory.filter { calendar.isDate($0.startedAt, inSameDayAs: now) }.count + 1
-        if today >= 2 { unlock("today_2", "DOUBLE", "2 in a day", "star") }
-        if today >= 3 { unlock("today_3", "TRIPLE", "3 in a day", "star") }
-        if today >= 5 { unlock("today_5", "MACHINE", "5 in a day", "star") }
-
-        // Day streak (consecutive calendar days with ≥1 completed session, ending today)
-        var streakDays = 1
-        var day = calendar.startOfDay(for: now)
-        while true {
-            guard let prev = calendar.date(byAdding: .day, value: -1, to: day) else { break }
-            let hasSession = completedHistory.contains {
-                calendar.isDate($0.startedAt, inSameDayAs: prev)
-            }
-            if hasSession { streakDays += 1; day = prev } else { break }
-        }
-        if streakDays >= 2 { unlock("streak_2", "STREAK ×2", "2 days in a row", "flame") }
-        if streakDays >= 3 { unlock("streak_3", "STREAK ×3", "3 days in a row", "flame") }
-        if streakDays >= 7 { unlock("streak_7", "STREAK ×7", "a full week", "flame") }
-
-        // Time of day
-        let hour = calendar.component(.hour, from: startedAt)
-        if hour < 9 { unlock("early_bird", "EARLY BIRD", "before 9:00", "sun") }
-        if hour >= 22 { unlock("night_owl", "NIGHT OWL", "after 22:00", "moon") }
-
         if !new.isEmpty { save() }
         return new
     }

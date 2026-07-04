@@ -154,7 +154,8 @@ final class SessionCoordinator {
         statsWindow?.orderOut(nil)
         let history = store.all()
         let stats = StatsService.compute(from: history)
-        let unlocked = Set((appState?.achievements.unlocked ?? []).map { $0.id })
+        // Live re-evaluation over the whole history (retroactive) — the source of truth for display.
+        let unlocked = AchievementEngine.unlockedIDs(history: history)
         let view = StatsView(stats: stats, unlockedIDs: unlocked)
         let w = makeStandardWindow(title: "Statistics", view: view, size: CGSize(width: 560, height: 620))
         statsWindow = w

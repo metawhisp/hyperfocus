@@ -119,19 +119,20 @@ final class AppState: ObservableObject {
     /// Called by the coordinator when the timer completes (before the mission answer):
     /// the session itself is done — evaluate achievements now so the card can celebrate.
     func evaluateAchievementsOnCompletion() {
-        lastUnlocks = achievements.evaluateCompletion(
-            planned: context.config?.plannedDurationSeconds ?? 0,
-            activeFocus: Int(context.activeFocusSeconds.rounded()),
-            breaks: context.breakCount,
-            startedAt: context.sessionStartTime ?? Date(),
-            history: store.all()
-        )
+        // The session isn't persisted yet here — evaluate over history + the just-finished one.
+        lastUnlocks = achievements.evaluate(fullHistory: store.all() + [makeSession(status: .done)])
     }
 
     func persist(_ status: CompletionStatus) {
         if status == .exited { achievements.registerBurned() }   // early STOP — counted, not celebrated
+        do { try store.append(makeSession(status: status)) }
+        catch { NSLog("Hyperfocus: failed to save session: \(error.localizedDescription)") }
+    }
+
+    /// Snapshot the current context into a persisted Session record.
+    private func makeSession(status: CompletionStatus) -> Session {
         let c = context
-        let session = Session(
+        return Session(
             id: UUID(),
             mission: c.config?.mission ?? "",
             successCondition: c.config?.successCondition,
@@ -147,8 +148,6 @@ final class AppState: ObservableObject {
             cameraEnabled: c.config?.cameraEnabled ?? false,
             nextAction: c.nextAction
         )
-        do { try store.append(session) }
-        catch { NSLog("Hyperfocus: failed to save session: \(error.localizedDescription)") }
     }
 
     // MARK: Menu / UI actions
