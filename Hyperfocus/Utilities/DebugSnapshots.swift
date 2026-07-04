@@ -56,9 +56,17 @@ enum DebugSnapshots {
         // FLIGHT DECK status-bar menu.
         snap(MenuBarContent(appState: app), "menubar", dir, CGSize(width: 284, height: 340))
 
-        // Statistics window mockup — both tabs.
-        snap(StatsWindowView(initialTab: 0, scroll: false), "stats_overview", dir, CGSize(width: 560, height: 620))
-        snap(StatsWindowView(initialTab: 1, scroll: false), "stats_achievements", dir, CGSize(width: 560, height: 620))
+        // Production Statistics window with sample data (overview tab).
+        var sampleStats = FocusStats()
+        sampleStats.totalFocusSeconds = 37 * 3600 + 12 * 60
+        sampleStats.sessionCount = 128
+        sampleStats.currentStreakDays = 5
+        sampleStats.longestStreakDays = 12
+        sampleStats.bestHour = 10
+        sampleStats.laserRate = 0.64
+        sampleStats.weeklyMinutes = [42, 75, 0, 90, 60, 25, 110]
+        snap(StatsView(stats: sampleStats, unlockedIDs: ["first_light", "laser_mind", "streak_3", "early_bird"]),
+             "stats_prod_overview", dir, CGSize(width: 560, height: 620))
 
         // Card shadow fade check over a LIGHT background: the shadow must reach 0 before the
         // window edge (no grey clipped box). Mirrors the production .card window margins.

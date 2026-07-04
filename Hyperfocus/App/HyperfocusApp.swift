@@ -61,6 +61,7 @@ struct MenuBarContent: View {
 
             hairline
             MenuRow(icon: "circle.dotted", title: "Show Focus Orb") { run { appState.showOrbFromMenu() } }
+            MenuRow(icon: "chart.bar.fill", title: "Statistics") { run { appState.showStats() } }
             MenuRow(icon: "gearshape.fill", title: "Settings") { run { appState.showSettings() } }
             MenuRow(icon: "clock.arrow.circlepath", title: "Session History") { run { appState.showHistory() } }
 

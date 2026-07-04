@@ -168,6 +168,7 @@ final class AppState: ObservableObject {
     func showOrb() { coordinator.showOrb() }
     func showSettings() { coordinator.showSettings() }
     func showHistory() { coordinator.showHistory() }
+    func showStats() { coordinator.showStats() }
 
     func quit() {
         if context.state.isRunning { send(.userExited) }

@@ -148,6 +148,19 @@ final class SessionCoordinator {
         present(w)
     }
 
+    private var statsWindow: NSWindow?
+
+    func showStats() {
+        statsWindow?.orderOut(nil)
+        let history = store.all()
+        let stats = StatsService.compute(from: history)
+        let unlocked = Set((appState?.achievements.unlocked ?? []).map { $0.id })
+        let view = StatsView(stats: stats, unlockedIDs: unlocked)
+        let w = makeStandardWindow(title: "Statistics", view: view, size: CGSize(width: 560, height: 620))
+        statsWindow = w
+        present(w)
+    }
+
     /// Launch-time reminder when camera permission is still missing after onboarding (canon #27):
     /// the product's core feature needs it, so ask up front — never right before a session.
     private var permissionNudgeWindow: NSWindow?
