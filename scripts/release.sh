@@ -19,7 +19,7 @@ APP="$DERIVED/Build/Products/Release/Hyperfocus.app"
 DIST="build/dist"
 DMG="$DIST/Hyperfocus.dmg"
 
-echo "▸ [1/6] Generating project + universal Release build (arm64 + x86_64)…"
+echo "▸ [1/7] Generating project + universal Release build (arm64 + x86_64)…"
 xcodegen >/dev/null
 xcodebuild -project Hyperfocus.xcodeproj -scheme Hyperfocus -configuration Release \
   -derivedDataPath "$DERIVED" ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
@@ -27,13 +27,28 @@ xcodebuild -project Hyperfocus.xcodeproj -scheme Hyperfocus -configuration Relea
 echo "  built: $APP"
 lipo -archs "$APP/Contents/MacOS/Hyperfocus"
 
-echo "▸ [2/6] Signing with Developer ID + hardened runtime + secure timestamp…"
+echo "▸ [2/7] Signing with Developer ID + hardened runtime + secure timestamp…"
+# Sparkle ships nested helpers (Updater.app, Autoupdate, XPC services, the dylib) that Apple
+# notarization inspects individually — they must each be signed Developer-ID + hardened + timestamped
+# INSIDE-OUT before the outer app, or the submission comes back Invalid.
+SPK="$APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$SPK" ]; then
+  for item in \
+      "$SPK/Versions/Current/XPCServices/Downloader.xpc" \
+      "$SPK/Versions/Current/XPCServices/Installer.xpc" \
+      "$SPK/Versions/Current/Updater.app" \
+      "$SPK/Versions/Current/Autoupdate" \
+      "$SPK"; do
+    [ -e "$item" ] && codesign --force --options runtime --timestamp --sign "$IDENTITY" "$item"
+  done
+  echo "  Sparkle helpers signed"
+fi
 codesign --force --options runtime --timestamp --entitlements "$ENT" \
   --sign "$IDENTITY" "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 echo "  signed OK"
 
-echo "▸ [3/6] Zipping for notarization…"
+echo "▸ [3/7] Zipping for notarization…"
 mkdir -p "$DIST"
 ZIP="$DIST/Hyperfocus-notarize.zip"
 ditto -c -k --keepParent "$APP" "$ZIP"
@@ -50,10 +65,10 @@ if ! xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; the
   exit 2
 fi
 
-echo "▸ [4/6] Submitting to Apple notary service (waits for the verdict)…"
+echo "▸ [4/7] Submitting to Apple notary service (waits for the verdict)…"
 xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
 
-echo "▸ [5/6] Stapling the ticket onto the app…"
+echo "▸ [5/7] Stapling the ticket onto the app…"
 xcrun stapler staple "$APP"
 spctl -a -vvv --type execute "$APP"
 
