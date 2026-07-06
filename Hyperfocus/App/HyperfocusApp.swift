@@ -10,6 +10,10 @@ struct HyperfocusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState.shared
 
+    init() {
+        _ = UpdaterService.shared   // start Sparkle's scheduled checks at launch (canon #42)
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MenuBarContent(appState: appState)
@@ -64,6 +68,7 @@ struct MenuBarContent: View {
             MenuRow(icon: "chart.bar.fill", title: "Statistics") { run { appState.showStats() } }
             MenuRow(icon: "gearshape.fill", title: "Settings") { run { appState.showSettings() } }
             MenuRow(icon: "clock.arrow.circlepath", title: "Session History") { run { appState.showHistory() } }
+            MenuRow(icon: "arrow.down.circle", title: "Check for Updates…") { run { UpdaterService.shared.checkForUpdates() } }
 
             #if DEBUG
             hairline

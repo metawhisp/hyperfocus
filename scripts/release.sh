@@ -57,7 +57,7 @@ echo "▸ [5/6] Stapling the ticket onto the app…"
 xcrun stapler staple "$APP"
 spctl -a -vvv --type execute "$APP"
 
-echo "▸ [6/6] Building the drag-install DMG (notarize the DMG itself, then staple)…"
+echo "▸ [6/7] Building the drag-install DMG (notarize the DMG itself, then staple)…"
 rm -f "$DMG"
 STAGE="$(mktemp -d)"
 cp -R "$APP" "$STAGE/"
@@ -68,6 +68,20 @@ rm -rf "$STAGE"
 xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
 xcrun stapler staple "$DMG"
 
+echo "▸ [7/7] Signing the update + regenerating the Sparkle appcast (docs/appcast.xml)…"
+# EdDSA signature comes from the key in the login keychain (created once via generate_keys);
+# versions are read from the DMG itself. The enclosure URL pins the versioned GitHub asset.
+VERSION=$(defaults read "$PWD/$APP/Contents/Info.plist" CFBundleShortVersionString)
+GEN_APPCAST=$(find "$DERIVED/SourcePackages/artifacts" -type f -name generate_appcast -path "*/bin/*" | head -1)
+if [ -z "$GEN_APPCAST" ]; then
+  echo "✋ generate_appcast not found under $DERIVED/SourcePackages — resolve SPM packages first." >&2
+  exit 3
+fi
+"$GEN_APPCAST" --download-url-prefix "https://github.com/metawhisp/hyperfocus/releases/download/v${VERSION}/" \
+  -o docs/appcast.xml "$DIST"
+echo "   appcast → docs/appcast.xml (deploy the site to publish the update)"
+
 echo ""
 echo "✅ Done. Distributable, notarized: $DMG"
 echo "   Opens on any macOS 15+ Mac (Apple Silicon + Intel) with a double-click."
+echo "   Next: gh release create v${VERSION} $DMG  +  deploy docs/ (appcast)."
