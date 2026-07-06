@@ -14,6 +14,7 @@ import AVFoundation
 
 enum FocusSoundMode: String, Codable, CaseIterable {
     case pad, humTide, humSweep, droneChorus, droneFifth, warmHybrid, lockIn
+    case tone639Glide, tone639Rise
     case brown, binaural, custom
 
     var displayName: String {
@@ -25,6 +26,8 @@ enum FocusSoundMode: String, Codable, CaseIterable {
         case .droneFifth: return "Warm Drone · Fifth"
         case .warmHybrid: return "Warm Hum"
         case .lockIn: return "Lock In"
+        case .tone639Glide: return "639 Hz · Glide"
+        case .tone639Rise: return "639 Hz · Rise"
         case .brown: return "Deep Noise"
         case .binaural: return "Focus Beats 40 Hz"
         case .custom: return "Custom Audio"
@@ -37,6 +40,9 @@ enum FocusSoundMode: String, Codable, CaseIterable {
         default: return false
         }
     }
+
+    /// The 639 Hz tone family — a rising entrance that locks onto 639, then holds it.
+    var isTone639: Bool { self == .tone639Glide || self == .tone639Rise }
 }
 
 final class FocusSoundService {
@@ -60,6 +66,7 @@ final class FocusSoundService {
     private var padRenderer: PadRenderer?
     private var droneRenderer: DroneRenderer?
     private var lockInRenderer: LockInRenderer?
+    private var tone639Renderer: Tone639Renderer?
     private var sampleIndex: Double = 0
     /// Session-relative clock for section schedules and slow LFOs: away stop/start cycles restart
     /// the engine (sampleIndex resets), but the soundscape must continue from where the SESSION is —
@@ -72,8 +79,9 @@ final class FocusSoundService {
 
     /// Background sound must stay a whisper — hard ceiling on the effective gain regardless of slider.
     private let maxGain: Float = 0.22
-    /// The music appears over this long — a slow swell, not a jump cut.
-    private let fadeInSeconds = 12.0
+    /// The music appears over this long — a slow swell, not a jump cut. The 639 modes own their
+    /// entrance envelope, so they use a near-instant master fade (just enough to avoid a click).
+    private var fadeInSeconds = 12.0
 
     func start(mode: FocusSoundMode, volume: Float, customFileURL: URL? = nil) {
         if mode == .custom {
@@ -91,6 +99,7 @@ final class FocusSoundService {
         self.mode = mode
         targetGain = clamped
         fade = 0
+        fadeInSeconds = mode.isTone639 ? 0.4 : 12.0    // 639 entrance owns its own swell
         brownL = 0; brownR = 0; lpL = 0; lpR = 0; phaseL = 0; phaseR = 0
         sampleIndex = 0
         if sessionAnchor == nil { sessionAnchor = Date() }      // defensive: beginSession owns this
@@ -132,6 +141,11 @@ final class FocusSoundService {
                 case .lockIn:
                     // LOCK IN protocol — sections follow the session clock.
                     if let out = self.lockInRenderer?.render(t: t) {
+                        left = out.left; right = out.right
+                    }
+                case .tone639Glide, .tone639Rise:
+                    // 639 Hz tone: a rising entrance locks onto 639, then the pure tone holds.
+                    if let out = self.tone639Renderer?.render(t: t) {
                         left = out.left; right = out.right
                     }
                 case .brown:
@@ -201,10 +215,15 @@ final class FocusSoundService {
         if mode == .lockIn, !(keepExisting && lockInRenderer != nil) {
             lockInRenderer = LockInRenderer(sampleRate: sampleRate, schedule: LockInPhase.production(elapsed:))
         }
+        if mode.isTone639, !(keepExisting && tone639Renderer != nil) {
+            tone639Renderer = Tone639Renderer(entrance: mode == .tone639Glide ? .glide : .rise,
+                                              sampleRate: sampleRate)
+        }
         if !keepExisting {
             if mode != .pad { padRenderer = nil }
             if !mode.isDrone { droneRenderer = nil }
             if mode != .lockIn { lockInRenderer = nil }
+            if !mode.isTone639 { tone639Renderer = nil }
         }
     }
 

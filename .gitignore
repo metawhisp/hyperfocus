@@ -5,3 +5,4 @@ xcuserdata/
 build/
 .build/
 .claude/scheduled_tasks.lock
+.wrangler/
