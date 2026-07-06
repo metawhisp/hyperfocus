@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Hyperfocus</title>
+        <item>
+            <title>1.2.0</title>
+            <pubDate>Mon, 06 Jul 2026 21:51:51 +0200</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/metawhisp/hyperfocus/releases/download/v1.2.0/Hyperfocus.dmg" length="6830932" type="application/octet-stream" sparkle:edSignature="2jg/kju/QTXKNTOdkiWp3tWxWO1Km8Ic8FMZchen8xrvQ8w8gPdtbh0KNx3NjyoUQbiVT/muJs8UPkfWbf6CDA=="/>
+        </item>
+    </channel>
+</rss>

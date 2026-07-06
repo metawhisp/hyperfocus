@@ -92,6 +92,9 @@ if [ -z "$GEN_APPCAST" ]; then
   echo "✋ generate_appcast not found under $DERIVED/SourcePackages — resolve SPM packages first." >&2
   exit 3
 fi
+# generate_appcast scans the whole dir; the notarization zip holds the same version as the DMG
+# and would trip "Duplicate updates". The zip was only needed for the notarytool submission.
+rm -f "$ZIP"
 "$GEN_APPCAST" --download-url-prefix "https://github.com/metawhisp/hyperfocus/releases/download/v${VERSION}/" \
   -o docs/appcast.xml "$DIST"
 echo "   appcast → docs/appcast.xml (deploy the site to publish the update)"
